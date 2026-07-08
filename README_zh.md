@@ -46,7 +46,7 @@ services/
 
 ### 上游
 
-- **agentrt-liunx 内核（AirymaxOS Kernel）** — 提供微内核原语、sched_ext 与 io_uring 入口
+- **agentrt-liunx 内核（AirymaxOS Kernel）** — 提供微核心原语、sched_ext 与 io_uring 入口
 - **Airymax daemons** — 提供被复用并扩展的守护进程框架与 IPC 契约
 - **Euler 24.03 LTS / 26.03** — systemd 与服务标准参考发行版
 

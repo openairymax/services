@@ -46,7 +46,7 @@ Design documents and reference distribution specifications are maintained in the
 
 ### Upstream
 
-- **agentrt-liunx Kernel (AirymaxOS Kernel)** — provides the microkernel primitives, sched_ext and io_uring entry points
+- **agentrt-liunx Kernel (AirymaxOS Kernel)** — provides the micro-core primitives, sched_ext and io_uring entry points
 - **Airymax daemons** — provides the daemon framework and IPC contracts that are reused and extended
 - **Euler 24.03 LTS / 26.03** — reference distribution for systemd and service standards
 

@@ -1,0 +1,51 @@
+List of maintainers
+===================
+
+services submodule (AirymaxOS) — 12 daemon + 用户态 VFS/Net/Drivers/IPC + systemd 集成.
+Field format inherited from Linux 6.6 MAINTAINERS. See top-level
+agentrt-linux/MAINTAINERS for field semantics.
+
+	M: *Mail* patches to: FullName <address@domain>
+	R: Designated *Reviewer*: FullName <address@domain>
+	L: *Mailing list* relevant to this area
+	S: *Status*: Supported/Maintained/Odd Fixes/Orphan/Obsolete
+	W: *Web-page* with status/info
+	B: URI for where to file *bugs*
+	T: *SCM* tree type and location (git)
+	F: *Files* and directories wildcard patterns
+	H: *Homologous* agentrt module (IRON-9 v2)
+	V: *Version* baseline declaration
+
+Preferred order: M: R: L: S: W: B: T: F: H: V:
+
+For 0.1.1 this submodule is S: Experimental.
+For 1.0.1 this submodule upgrades to S: Pilot.
+
+----------------------------------------------------------------------
+
+SERVICES SUBSYSTEM (12 daemons + userland VFS/Net/Drivers/IPC + systemd)
+M:	SPHARX Engineering Standards Group <eng-standards@spharx.com>
+R:	Services Lead <services-lead@spharx.com>
+L:	airy-dev@spharx.com
+S:	Experimental
+W:	https://github.com/openairymax/services
+B:	https://github.com/openairymax/services/issues
+T:	git https://atomgit.com/openairymax/services.git
+F:	*
+F:	daemons/
+F:	userland/
+F:	systemd/
+F:	Documentation/
+H:	daemons
+V:	agentrt-linux 0.1.1 / Linux 6.6
+License:	GPL-2.0-only
+
+[SC] SHARED CONTRACT LAYER (referenced via -I, no physical copy)
+M:	SPHARX Engineering Standards Group <eng-standards@spharx.com>
+R:	Kernel Core Lead <kernel-lead@spharx.com>
+L:	airy-dev@spharx.com
+S:	Supported
+F:	../kernel/include/uapi/linux/airymax/
+Note:	[SC] changes require dual CI validation (agentrt-linux + agentrt)
+	and final approval by L3 top maintainer (SPHARX Engineering).
+	OS-IRON-014 forbids physical copies of [SC] headers in this submodule.

@@ -77,7 +77,7 @@ own `.github/workflows/`.
 
 ## Upstream & Downstream
 
-- **Upstream** — `kernel` (micro-core primitives, sched_ext, io_uring); Airymax `daemons`; Euler 24.03 LTS / 26.03 standards.
+- **Upstream** — `kernel` (micro-core primitives, sched_tac, io_uring); Airymax `daemons`; Euler 24.03 LTS / 26.03 standards.
 - **Downstream** — `system` (packages and configures the service set); `cloudnative` (consumes the service surface).
 
 ## License

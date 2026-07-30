@@ -15,7 +15,7 @@
 
 **agentrt-linux 服务态（AirymaxOS Services）**（`airymaxos-services`）是 agentrt-linux（AirymaxOS）（智能体操作系统）的用户态服务子系统。它实现微内核用户态服务层：将 VFS、网络与驱动从内核移至用户态守护进程，通过 12 个专用守护进程与 systemd 集成，并经 io_uring 消息传递与内核通信。
 
-在 agentrt-linux 0.1.1 中，本仓库为**文档体系完成**，包含设计文档、参考发行版规范及架构草案。实际的内核与 OS 开发在 1.0.1 版本进行。
+在 Airymax 0.1.1 中，本仓库为**文档体系完成**，包含设计文档、参考发行版规范及架构草案。实际的内核与 OS 开发在 1.0.1 版本进行。
 
 ### 核心技术
 

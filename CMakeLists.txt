@@ -1,5 +1,5 @@
 # ===========================================================================
-# agentrt-linux (AirymaxOS) services submodule CMakeLists.txt
+# agent-linux (AirymaxOS) services submodule CMakeLists.txt
 # 构建入口：12 daemon + 用户态子系统
 # 决策 F1：最小可编译骨架（非桩）
 # ===========================================================================

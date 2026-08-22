@@ -24,7 +24,7 @@ services 子仓负责 AirymaxOS 的全部用户态服务，包括：
 ### IRON-9 主层
 
 - `[SS]`：`gateway_d` / `sched_d` / `cogn_d`（与 agentrt gateway/atoms/sched 同源 OS 升级）
-- `[IND]`：其余 daemon 与用户态子系统（agentrt-linux 专属实现）
+- `[IND]`：其余 daemon 与用户态子系统（agent-linux 专属实现）
 
 ## 2. 开发环境要求
 

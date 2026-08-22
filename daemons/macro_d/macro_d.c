@@ -9,7 +9,7 @@
  *   读取 [SC] error.h 中定义的故障码，执行宏观裁决
  *   （警告 / 降级 / 暂停 / 终止），将裁决结果打印到 stderr。
  *
- * [IND] 完全独立层（agentrt-linux 专属实现，决策 F1 真实可编译骨架）。
+ * [IND] 完全独立层（agent-linux 专属实现，决策 F1 真实可编译骨架）。
  *
  * 相关文档：
  *   docs/AirymaxOS/10-architecture/07-directory-structure.md §4.2

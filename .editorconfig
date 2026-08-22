@@ -1,7 +1,7 @@
 # ===========================================================================
-# agentrt-linux (AirymaxOS) services submodule EditorConfig
+# agent-linux (AirymaxOS) services submodule EditorConfig
 # https://editorconfig.org
-# Identical to top-level agentrt-linux/.editorconfig
+# Identical to top-level agent-linux/.editorconfig
 # ===========================================================================
 
 root = true

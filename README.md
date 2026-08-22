@@ -1,12 +1,12 @@
 **Language:** English | [简体中文](README_zh.md)
 
-# services — agentrt-linux (AirymaxOS) Services
+# services — agent-linux (AirymaxOS) Services
 
 [![Version](https://img.shields.io/badge/version-0.1.1-5a6b7e)](https://atomgit.com/openairymax/services)
 [![License](https://img.shields.io/badge/license-AGPL--3.0+Apache--2.0-4a90d9)](LICENSE)
 
-> Services subsystem of [agentrt-linux (AirymaxOS)](https://atomgit.com/openairymax/agentrt-linux) — the AI Agent Operating System.
-> One of the 8 leaf repositories aggregated by the [agentrt-linux](https://atomgit.com/openairymax/agentrt-linux) management repo.
+> Services subsystem of [agent-linux (AirymaxOS)](https://atomgit.com/openairymax/agent-linux) — the AI Agent Operating System.
+> One of the 8 leaf repositories aggregated by the [agent-linux](https://atomgit.com/openairymax/agent-linux) management repo.
 > Reuses and extends the Airymax `daemons` module for OS-level user-space services.
 
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ## Positioning
 
 The **services** leaf repository is the user-space services subsystem of
-agentrt-linux (AirymaxOS). It implements the microkernel user-space service
+agent-linux (AirymaxOS). It implements the microkernel user-space service
 layer: VFS, networking and drivers are moved out of the kernel into user-space
 daemons, integrated with systemd via 12 dedicated daemons, and connected to the
 kernel through io_uring-based message passing.

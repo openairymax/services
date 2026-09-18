@@ -37,7 +37,7 @@ services/.github/
   linting; keep each workflow ≤ 2 jobs.
 - Daemon↔kernel IPC uses io_uring with ABI magic `0x41524531` (`'ARE1'`).
 - Daemon functions use the `airy_*` prefix (not legacy `airymaxos_*`).
-- Reference authority: `docs/AirymaxOS/70-build-system/03-ci-cd-pipeline.md`.
+- Reference authority: `docs/docs-linux/70-build-system/03-ci-cd-pipeline.md`.
 
 ## License
 

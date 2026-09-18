@@ -61,6 +61,6 @@ main(argc, argv)
 
 ## 4. 相关文档
 
-- [07-directory-structure.md](../../../docs/AirymaxOS/10-architecture/07-directory-structure.md) §4.2 — 完整目录结构
-- [07-directory-structure.md](../../../docs/AirymaxOS/10-architecture/07-directory-structure.md) 附录 B — 12 daemon 完整源文件清单
+- [07-directory-structure.md](../../../docs/docs-linux/10-architecture/07-directory-structure.md) §4.2 — 完整目录结构
+- [07-directory-structure.md](../../../docs/docs-linux/10-architecture/07-directory-structure.md) 附录 B — 12 daemon 完整源文件清单
 - [error.h](../../kernel/include/uapi/linux/airymax/error.h) — [SC] 故障码定义

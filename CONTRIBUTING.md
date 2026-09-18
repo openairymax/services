@@ -1,8 +1,8 @@
 # 贡献指南 - services 子仓（用户态服务）
 
-> **治理依据**：[`docs/AirymaxOS/50-engineering-standards/07-maintainers-and-governance.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/07-maintainers-and-governance.md)
-> **开发流程**：[`docs/AirymaxOS/50-engineering-standards/05-development-process.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/05-development-process.md)
-> **工程哲学**：[`docs/AirymaxOS/50-engineering-standards/04-engineering-philosophy.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/04-engineering-philosophy.md)
+> **治理依据**：[`docs/docs-linux/50-engineering-standards/07-maintainers-and-governance.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/07-maintainers-and-governance.md)
+> **开发流程**：[`docs/docs-linux/50-engineering-standards/05-development-process.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/05-development-process.md)
+> **工程哲学**：[`docs/docs-linux/50-engineering-standards/04-engineering-philosophy.md`](https://github.com/openairymax/docs/blob/main/AirymaxOS/50-engineering-standards/04-engineering-philosophy.md)
 
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 

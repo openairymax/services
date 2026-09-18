@@ -29,7 +29,7 @@ License: GPL-2.0-only
 
 ## 相关文档
 
-- [07-directory-structure.md](../../../docs/AirymaxOS/10-architecture/07-directory-structure.md) §4.2 — services 子仓完整目录结构
-- [04-engineering-philosophy.md](../../../docs/AirymaxOS/50-engineering-standards/04-engineering-philosophy.md) — IRON-1~15 工程铁律
-- [05-development-process.md](../../../docs/AirymaxOS/50-engineering-standards/05-development-process.md) — 开发流程
+- [07-directory-structure.md](../../../docs/docs-linux/10-architecture/07-directory-structure.md) §4.2 — services 子仓完整目录结构
+- [04-engineering-philosophy.md](../../../docs/docs-linux/50-engineering-standards/04-engineering-philosophy.md) — IRON-1~15 工程铁律
+- [05-development-process.md](../../../docs/docs-linux/50-engineering-standards/05-development-process.md) — 开发流程
 - 顶层 [CONTRIBUTING.md](../CONTRIBUTING.md) — services 子仓贡献指南

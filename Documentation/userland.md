@@ -32,5 +32,5 @@ License: GPL-2.0-only
 
 ## 4. 相关文档
 
-- [07-directory-structure.md](../../../docs/AirymaxOS/10-architecture/07-directory-structure.md) §4.2 — 完整目录结构
+- [07-directory-structure.md](../../../docs/docs-linux/10-architecture/07-directory-structure.md) §4.2 — 完整目录结构
 - [ipc.h](../../kernel/include/uapi/linux/airymax/ipc.h) — [SC] IPC 契约

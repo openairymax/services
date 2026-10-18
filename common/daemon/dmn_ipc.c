@@ -63,7 +63,7 @@ int airy_dmn_ipc(struct airy_dmn *dmn, int fd, airy_dmn_msg msg, void *data)
 
 	if (!dmn || fd < 0 || !msg)
 		return -AIRY_EINVAL;
-	if (dmn->state != AIRY_DMN_INIT)
+	if (!airy_dmn_evok(dmn))
 		return -AIRY_EBUSY;
 
 	ret = dmn_type(fd);

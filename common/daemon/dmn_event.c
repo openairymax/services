@@ -38,7 +38,7 @@ static const struct {
 	{ EPERM,	AIRY_EACCES	},
 };
 
-static int dmn_err(int err)
+int airy_dmn_err(int err)
 {
 	size_t i;
 
@@ -49,14 +49,14 @@ static int dmn_err(int err)
 	return -AIRY_EIO;
 }
 
-static int dmn_ep(struct airy_dmn *dmn)
+int airy_dmn_ep(struct airy_dmn *dmn)
 {
 	if (dmn->epfd >= 0)
 		return 0;
 
 	dmn->epfd = epoll_create1(EPOLL_CLOEXEC);
 	if (dmn->epfd < 0)
-		return dmn_err(errno);
+		return airy_dmn_err(errno);
 
 	return 0;
 }
@@ -99,6 +99,22 @@ uint32_t airy_dmn_mask(unsigned int events)
 	return mask;
 }
 
+unsigned int airy_dmn_rev(uint32_t mask)
+{
+	unsigned int events = 0;
+
+	if (mask & (EPOLLIN | EPOLLPRI))
+		events |= AIRY_DMN_IN;
+	if (mask & EPOLLOUT)
+		events |= AIRY_DMN_OUT;
+	if (mask & EPOLLERR)
+		events |= AIRY_DMN_ERR;
+	if (mask & (EPOLLHUP | EPOLLRDHUP))
+		events |= AIRY_DMN_HUP;
+
+	return events;
+}
+
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind)
 {
@@ -113,13 +129,13 @@ int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 	if (slot < 0)
 		return slot;
 
-	ret = dmn_ep(dmn);
+	ret = airy_dmn_ep(dmn);
 	if (ret)
 		return ret;
 
 	ev.data.u32 = (uint32_t)slot;
 	if (epoll_ctl(dmn->epfd, EPOLL_CTL_ADD, fd, &ev))
-		return dmn_err(errno);
+		return airy_dmn_err(errno);
 
 	dmn->evts[slot].fd = fd;
 	dmn->evts[slot].kind = kind;
@@ -143,7 +159,7 @@ int airy_dmn_detach(struct airy_dmn *dmn, int slot)
 	if (dmn->epfd >= 0 &&
 	    epoll_ctl(dmn->epfd, EPOLL_CTL_DEL, evt->fd, NULL) &&
 	    errno != ENOENT && errno != EBADF)
-		return dmn_err(errno);
+		return airy_dmn_err(errno);
 
 	memset(evt, 0, sizeof(*evt));
 	dmn->nr_evt--;

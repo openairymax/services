@@ -117,16 +117,26 @@ struct airy_dmn {
  * 事件源内部操作：airy_dmn_attach() 占用槽位并以槽位下标作为 epoll
  * data.u32，返回槽位；airy_dmn_detach() 释放槽位，外部已关闭的描述符
  * 不视为错误。airy_dmn_ep() 惰性创建 epoll，airy_dmn_mask() 与
- * airy_dmn_rev() 负责两向掩码翻译，airy_dmn_err() 收敛 errno。以上
- * 均由 fd、IPC 与主循环分片共用，避免多份实现。
+ * airy_dmn_rev() 负责两向掩码翻译，airy_dmn_err() 收敛 errno。
+ * airy_dmn_find() 按描述符查槽位，fd 与 IPC 注册共用，保证同一
+ * 描述符不会占用两个槽位。以上均由各实现分片共用，避免多份实现。
  */
 uint32_t airy_dmn_mask(unsigned int events);
 unsigned int airy_dmn_rev(uint32_t mask);
 int airy_dmn_ep(struct airy_dmn *dmn);
 int airy_dmn_err(int err);
+int airy_dmn_find(const struct airy_dmn *dmn, int fd);
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind);
 int airy_dmn_detach(struct airy_dmn *dmn, int slot);
+
+/*
+ * IPC 通道内部操作：airy_dmn_ipcrecv() 从已注册通道读取一条完整
+ * 消息帧，校验 Layout C 头后回调。帧过短、magic 或 payload_len 不
+ * 符、对端关闭均返回 -AIRY_EIO；主循环据此终止，避免在失序通道上
+ * 继续解释字节流。
+ */
+int airy_dmn_ipcrecv(struct airy_dmn *dmn, struct airy_dmn_evt *evt);
 
 /*
  * 信号收口内部操作：airy_dmn_sigarm() 阻塞 SIGTERM/SIGINT/SIGHUP 并

@@ -72,7 +72,7 @@ static int dmn_slot(const struct airy_dmn *dmn)
 	return -AIRY_ENOMEM;
 }
 
-static int dmn_find(const struct airy_dmn *dmn, int fd)
+int airy_dmn_find(const struct airy_dmn *dmn, int fd)
 {
 	unsigned int i;
 
@@ -177,7 +177,7 @@ int airy_dmn_add(struct airy_dmn *dmn, const struct airy_dmn_src *src)
 		return -AIRY_EINVAL;
 	if (dmn->state != AIRY_DMN_INIT)
 		return -AIRY_EBUSY;
-	if (dmn_find(dmn, src->fd) >= 0)
+	if (airy_dmn_find(dmn, src->fd) >= 0)
 		return -AIRY_EEXIST;
 
 	slot = airy_dmn_attach(dmn, src->fd, airy_dmn_mask(src->events),
@@ -199,7 +199,7 @@ int airy_dmn_del(struct airy_dmn *dmn, int fd)
 	if (!dmn || fd < 0)
 		return -AIRY_EINVAL;
 
-	slot = dmn_find(dmn, fd);
+	slot = airy_dmn_find(dmn, fd);
 	if (slot < 0)
 		return slot;
 

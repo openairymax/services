@@ -7,6 +7,7 @@ add_library(airy_daemon STATIC
 	daemon/dmn_beat.c
 	daemon/dmn_core.c
 	daemon/dmn_event.c
+	daemon/dmn_ipc.c
 	daemon/dmn_loop.c
 	daemon/dmn_sig.c
 )

@@ -218,6 +218,8 @@ void airy_dmn_stop(struct airy_dmn *dmn);
 /**
  * airy_dmn_beat() - 记录一次心跳
  * @dmn: 上下文；NULL 安全
+ *
+ * 可在任意线程调用，与 airy_dmn_live() 并发安全。
  */
 void airy_dmn_beat(struct airy_dmn *dmn);
 
@@ -225,8 +227,11 @@ void airy_dmn_beat(struct airy_dmn *dmn);
  * airy_dmn_live() - 查询心跳是否新鲜
  * @dmn: 上下文
  *
- * Return: beat_ms 已配置且最近一次心跳未超过 beat_ms * miss_max
- *         时返回 true；否则 false。
+ * 容忍窗口为 beat_ms * miss_max，最近一次心跳落在窗口内即为新鲜。
+ * 首次 airy_dmn_beat() 之前不视为新鲜，避免未上报即被当作存活。
+ *
+ * Return: beat_ms 已配置且首次心跳后在容忍窗口内返回 true；否则
+ *         false。
  */
 bool airy_dmn_live(const struct airy_dmn *dmn);
 

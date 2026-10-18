@@ -71,7 +71,6 @@ struct airy_dmn *airy_dmn_new(const struct airy_dmn_cfg *cfg)
 	dmn->epfd = -1;
 	dmn->sigfd = -1;
 	dmn->wfd = -1;
-	dmn->last_beat = airy_dmn_now();
 
 	return dmn;
 }

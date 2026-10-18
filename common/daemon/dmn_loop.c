@@ -4,8 +4,8 @@
  *
  * dmn_loop.c — daemon 框架主循环与周期 tick
  *
- * epoll_wait() 是唯一阻塞点：fd 事件按槽位回调，tick 按单调时钟
- * 截止点触发。框架自持的 eventfd 以 AIRY_DMN_CTL 哨兵注册，使
+ * epoll_wait() 是唯一阻塞点：fd 与 IPC 事件按槽位分派，tick 按单调
+ * 时钟截止点触发。框架自持的 eventfd 以 AIRY_DMN_CTL 哨兵注册，使
  * airy_dmn_stop() 在没有外部事件时也能立即打断等待，且不占用事件
  * 源槽位；signalfd 以 AIRY_DMN_SIG 哨兵注册，信号经同一循环分派。
  * ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
@@ -80,41 +80,51 @@ static int dmn_wait(struct airy_dmn *dmn, struct epoll_event *evs)
 	return airy_dmn_err(errno);
 }
 
+static int dmn_fire_fd(struct airy_dmn *dmn, struct airy_dmn_evt *evt,
+		       const struct epoll_event *ev)
+{
+	unsigned int events;
+
+	events = airy_dmn_rev(ev->events);
+	events &= evt->events | AIRY_DMN_ERR | AIRY_DMN_HUP;
+	if (!events)
+		return 0;
+
+	return evt->cb.fd.recv(dmn, evt->fd, events, evt->cb.fd.data);
+}
+
+static int dmn_fire_one(struct airy_dmn *dmn, const struct epoll_event *ev)
+{
+	struct airy_dmn_evt *evt;
+	uint32_t slot;
+
+	slot = ev->data.u32;
+	if (slot == AIRY_DMN_CTL) {
+		dmn_drain(dmn);
+		return 0;
+	}
+	if (slot == AIRY_DMN_SIG)
+		return airy_dmn_sigev(dmn);
+	if (slot >= AIRY_ARRAY_SIZE(dmn->evts))
+		return 0;
+
+	evt = &dmn->evts[slot];
+	if (!evt->used)
+		return 0;
+	if (evt->kind == AIRY_DMN_KIND_IPC)
+		return airy_dmn_ipcrecv(dmn, evt);
+
+	return dmn_fire_fd(dmn, evt, ev);
+}
+
 static int dmn_fire(struct airy_dmn *dmn, const struct epoll_event *evs,
 		    int n)
 {
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < (unsigned int)n; i++) {
-		struct airy_dmn_evt *evt;
-		unsigned int events;
-		uint32_t slot;
-		int ret;
-
-		slot = evs[i].data.u32;
-		if (slot == AIRY_DMN_CTL) {
-			dmn_drain(dmn);
-			continue;
-		}
-		if (slot == AIRY_DMN_SIG) {
-			ret = airy_dmn_sigev(dmn);
-			if (ret)
-				return ret;
-			continue;
-		}
-		if (slot >= AIRY_ARRAY_SIZE(dmn->evts))
-			continue;
-
-		evt = &dmn->evts[slot];
-		if (!evt->used || evt->kind != AIRY_DMN_KIND_FD)
-			continue;
-
-		events = airy_dmn_rev(evs[i].events);
-		events &= evt->events | AIRY_DMN_ERR | AIRY_DMN_HUP;
-		if (!events)
-			continue;
-
-		ret = evt->cb.fd.recv(dmn, evt->fd, events, evt->cb.fd.data);
+		ret = dmn_fire_one(dmn, &evs[i]);
 		if (ret)
 			return ret;
 	}

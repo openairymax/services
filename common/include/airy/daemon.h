@@ -66,7 +66,7 @@ typedef int (*airy_dmn_ev)(struct airy_dmn *dmn, int fd,
  * typedef airy_dmn_msg - IPC 消息回调
  * @dmn: daemon 上下文
  * @hdr: 已校验 magic 与 payload_len 的 128 字节消息头
- * @payload: 消息体，仅在回调期间有效
+ * @payload: 消息体，空载荷为 NULL，仅在回调期间有效
  * @data: airy_dmn_ipc() 注册的私有数据
  *
  * Return: 0 成功；负值终止主循环。
@@ -184,7 +184,9 @@ int airy_dmn_del(struct airy_dmn *dmn, int fd);
  * @data: 透传给 msg
  *
  * 框架按 128 字节头 + payload_len 读取一条完整消息，校验 magic 与
- * 长度上界后回调；描述符由调用方持有。
+ * 长度上界后回调；一条消息须由单次 send 写入同一条记录或数据报。
+ * 帧短于头部、magic 或 payload_len 不符、对端关闭时主循环以
+ * -AIRY_EIO 终止，不做字节流重同步。描述符由调用方持有。
  *
  * Return: 0 成功；-AIRY_EINVAL 参数非法或 fd 类型不符；
  *         -AIRY_EEXIST/-AIRY_EBUSY/-AIRY_ENOMEM 同 airy_dmn_add()。

@@ -27,6 +27,9 @@
 #define AIRY_DMN_DFL_MISS	3
 #define AIRY_DMN_EPOLL_MAX	64
 
+/* 唤醒源在 epoll data.u32 中的哨兵值，不占用事件源槽位。 */
+#define AIRY_DMN_CTL		UINT32_MAX
+
 #define AIRY_ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 
 /**
@@ -76,6 +79,7 @@ struct airy_dmn_evt {
  * @bound: 是否已通过 airy_dmn_reg() 绑定业务回调
  * @epfd: 框架自持的 epoll 描述符，-1 表示未创建
  * @sigfd: 框架自持的 signalfd 描述符，-1 表示未创建
+ * @wfd: 框架自持的唤醒 eventfd，-1 表示未创建
  * @next_tick: 下一次 tick 的单调毫秒截止点
  * @last_beat: 最近一次心跳的单调毫秒时刻
  * @ops: 业务回调副本
@@ -93,6 +97,7 @@ struct airy_dmn {
 	bool bound;
 	int epfd;
 	int sigfd;
+	int wfd;
 	uint64_t next_tick;
 	uint64_t last_beat;
 	struct airy_dmn_ops ops;
@@ -103,9 +108,14 @@ struct airy_dmn {
 /*
  * 事件源内部操作：airy_dmn_attach() 占用槽位并以槽位下标作为 epoll
  * data.u32，返回槽位；airy_dmn_detach() 释放槽位，外部已关闭的描述符
- * 不视为错误。二者由 fd 与 IPC 注册路径共用，避免两份 epoll 逻辑。
+ * 不视为错误。airy_dmn_ep() 惰性创建 epoll，airy_dmn_mask() 与
+ * airy_dmn_rev() 负责两向掩码翻译，airy_dmn_err() 收敛 errno。以上
+ * 均由 fd、IPC 与主循环分片共用，避免多份实现。
  */
 uint32_t airy_dmn_mask(unsigned int events);
+unsigned int airy_dmn_rev(uint32_t mask);
+int airy_dmn_ep(struct airy_dmn *dmn);
+int airy_dmn_err(int err);
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind);
 int airy_dmn_detach(struct airy_dmn *dmn, int slot);

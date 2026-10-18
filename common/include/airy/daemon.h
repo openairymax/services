@@ -196,9 +196,12 @@ int airy_dmn_ipc(struct airy_dmn *dmn, int fd, airy_dmn_msg msg, void *data);
  * @dmn: 上下文
  *
  * 依次调用 start、epoll 事件循环、stop。AIRY_DMN_F_SIG 生效时，
- * SIGTERM/SIGINT 触发停止，SIGHUP 触发 reload。
+ * SIGTERM/SIGINT 触发停止，SIGHUP 触发 reload。框架自持唤醒源，
+ * airy_dmn_stop() 可在其他线程调用并立即打断等待。
  *
- * Return: 0 正常停止；-AIRY_EINVAL 未注册回调；负值来自回调。
+ * Return: 0 正常停止；-AIRY_EINVAL 未注册回调；-AIRY_EBUSY 主循环
+ *         已启动；-AIRY_ENOMEM/-AIRY_EACCES/-AIRY_EIO 事件循环资源
+ *         创建失败；负值来自回调。
  */
 int airy_dmn_run(struct airy_dmn *dmn);
 

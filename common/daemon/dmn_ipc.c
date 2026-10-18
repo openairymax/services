@@ -9,7 +9,9 @@
  * 报套接字上丢弃剩余字节。消息头按 Layout C 校验 magic、保留标志位、
  * payload_len 与 C-S12 摘要后回调；非法帧与对端关闭均返回负值，由
  * 主循环终止，不做字节流重同步。发送以 128 字节头加消息体单次写出
- * 一条记录，摘要由本层盖写，调用方头副本不被修改。
+ * 一条记录，摘要由本层盖写，调用方头副本不被修改；批量发送先校验
+ * 全部帧再分块提交，仅末帧带 BATCH_TAIL，部分写出由已发送条数界定
+ * 续发位置。
  *
  * IRON-9 v3: [IND] 独立实现层 — agent-linux services 子仓内部。
  *
@@ -180,6 +182,123 @@ int airy_dmn_send(struct airy_dmn *dmn, int fd,
 	msg.msg_iovlen = 2;
 
 	return dmn_wrmsg(fd, &msg, AIRY_IPC_HDR_SIZE + hdr->payload_len);
+}
+
+/*
+ * 批量提交按固定上限分块：栈占用有界，同时把 syscall 次数摊销到一次
+ * sendmmsg()。总帧数不设上限，超出块大小由外层循环续发。
+ */
+#define DMN_BATCH_MAX	16
+
+static int dmn_batchchk(const struct airy_dmn_frame *frames, size_t nr)
+{
+	size_t i;
+	int ret;
+
+	if (!frames || nr < 2)
+		return -AIRY_EINVAL;
+
+	for (i = 0; i < nr; i++) {
+		ret = dmn_sndchk(frames[i].hdr, frames[i].payload);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* 盖写批量语义字段：opcode 统一、仅末帧带 BATCH_TAIL、摘要逐帧计算。 */
+static void dmn_batchhdr(struct airy_ipc_msg_hdr *wire,
+			 const struct airy_dmn_frame *frame, bool tail)
+{
+	*wire = *frame->hdr;
+	wire->opcode = AIRY_IPC_OP_SEND_BATCH;
+	wire->flags = (uint16_t)(wire->flags & ~AIRY_IPC_FLAG_BATCH_TAIL);
+	if (tail)
+		wire->flags |= AIRY_IPC_FLAG_BATCH_TAIL;
+	wire->crc32 = airy_dmn_crc(wire, frame->payload);
+}
+
+static int dmn_sndmmsg(int fd, struct mmsghdr *mmsg, size_t cnt,
+		       size_t *sent)
+{
+	ssize_t ret;
+
+	do {
+		ret = sendmmsg(fd, mmsg, (unsigned int)cnt, MSG_NOSIGNAL);
+	} while (ret < 0 && errno == EINTR);
+
+	*sent = ret < 0 ? 0 : (size_t)ret;
+	if (ret < 0)
+		return dmn_snderr(errno);
+
+	return (size_t)ret == cnt ? 0 : -AIRY_EAGAIN;
+}
+
+/*
+ * 提交一块，cnt 不超过 DMN_BATCH_MAX。tail 表示本块含整批末帧，由调用
+ * 方保证。sendmmsg() 整块失败返回负值，部分成功返回已提交条数，两者
+ * 都与块内记录边界一致。
+ */
+static int dmn_batchblk(int fd, const struct airy_dmn_frame *frames,
+			size_t base, size_t cnt, bool tail, size_t *sent)
+{
+	struct airy_ipc_msg_hdr wire[DMN_BATCH_MAX];
+	struct mmsghdr mmsg[DMN_BATCH_MAX] = { 0 };
+	struct iovec iov[DMN_BATCH_MAX][2];
+	size_t i;
+
+	for (i = 0; i < cnt; i++) {
+		dmn_batchhdr(&wire[i], &frames[base + i],
+			     tail && i + 1 == cnt);
+		iov[i][0].iov_base = &wire[i];
+		iov[i][0].iov_len = AIRY_IPC_HDR_SIZE;
+		iov[i][1].iov_base = (void *)frames[base + i].payload;
+		iov[i][1].iov_len = frames[base + i].hdr->payload_len;
+		mmsg[i].msg_hdr.msg_iov = iov[i];
+		mmsg[i].msg_hdr.msg_iovlen = 2;
+	}
+
+	return dmn_sndmmsg(fd, mmsg, cnt, sent);
+}
+
+int airy_dmn_batch(struct airy_dmn *dmn, int fd,
+		   const struct airy_dmn_frame *frames, size_t nr,
+		   size_t *done)
+{
+	size_t base = 0;
+	size_t sent = 0;
+	size_t cnt;
+	int ret;
+
+	if (done)
+		*done = 0;
+	if (!dmn || fd < 0)
+		return -AIRY_EINVAL;
+
+	ret = dmn_batchchk(frames, nr);
+	if (ret)
+		return ret;
+
+	ret = dmn_sndfd(dmn, fd);
+	if (ret)
+		return ret;
+
+	while (base < nr) {
+		cnt = nr - base;
+		if (cnt > DMN_BATCH_MAX)
+			cnt = DMN_BATCH_MAX;
+
+		ret = dmn_batchblk(fd, frames, base, cnt,
+				   base + cnt == nr, &sent);
+		base += sent;
+		if (done)
+			*done = base;
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static ssize_t dmn_peek(int fd)

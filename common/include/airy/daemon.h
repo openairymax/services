@@ -247,6 +247,22 @@ int airy_dmn_batch(struct airy_dmn *dmn, int fd,
 		   size_t *done);
 
 /**
+ * airy_dmn_notify() - 向 systemd 上报就绪、看门狗或状态
+ * @state: 一行或多行 KEY=VALUE，以 '\n' 分隔
+ *
+ * 从环境变量 NOTIFY_SOCKET 取得目标 Unix 数据报地址并发送 @state
+ * 原文；路径以 '@' 开头时表示抽象命名空间。未在 systemd 下运行时
+ * 变量缺省，按无操作成功返回。本函数只做传输，不解析内容，由调用
+ * 方决定 READY=1、WATCHDOG=1 或 STATUS=... 等语义；状态串按原样
+ * 发送，需要尾随换行时由调用方自行包含。
+ *
+ * Return: 0 已发送或未配置；-AIRY_EINVAL 状态为空或超长、套接字路
+ *         径非法；-AIRY_ENOENT 套接字不存在；-AIRY_ENOMEM 描述符耗
+ *         尽；-AIRY_EIO 目标拒绝或发送失败。
+ */
+int airy_dmn_notify(const char *state);
+
+/**
  * airy_dmn_run() - 进入主循环
  * @dmn: 上下文
  *

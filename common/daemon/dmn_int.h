@@ -79,16 +79,19 @@ struct airy_dmn_evt {
  * @beat_ms: 心跳间隔毫秒数，0 关闭存活记账
  * @miss_max: 允许连续错过的心跳数
  * @flags: AIRY_DMN_F_* 位掩码
- * @state: 生命周期状态
+ * @state: 生命周期状态；原子量，主循环线程发布、任意线程查询
  * @bound: 是否已通过 airy_dmn_reg() 绑定业务回调
  * @epfd: 框架自持的 epoll 描述符，-1 表示未创建
  * @sigfd: 框架自持的 signalfd 描述符，-1 表示未创建
- * @wfd: 框架自持的唤醒 eventfd，-1 表示未创建
+ * @wfd: 框架自持的唤醒 eventfd，-1 表示未创建；原子量，主循环创建
+ *       后由 airy_dmn_stop() 从其他线程读取
  * @next_tick: 下一次 tick 的单调毫秒截止点
  * @last_beat: 最近一次心跳的单调毫秒时刻，0 表示尚未上报；原子量，
  *             跨线程刷新与读取
- * @loop_tid: 主循环线程 id，0 表示未运行；运行期事件源变更据此限定
- *            在回调线程，事件表始终只由循环线程修改
+ * @loop_tid: 主循环线程 id，0 表示未运行；原子量，运行期事件源变更
+ *            据此限定在回调线程，事件表始终只由循环线程修改
+ * @stop_req: 停止请求标志；原子量，任意线程置位后主循环在下一个
+ *            分派点退出，早于 run 或位于 start 回调内同样生效
  * @old_mask: 运行前的线程信号掩码，仅 sig_saved 为真时有效
  * @sig_saved: 是否已接管信号掩码
  * @ops: 业务回调副本
@@ -102,20 +105,42 @@ struct airy_dmn {
 	unsigned int beat_ms;
 	unsigned int miss_max;
 	unsigned int flags;
-	enum airy_dmn_state state;
+	_Atomic int state;
 	bool bound;
 	int epfd;
 	int sigfd;
-	int wfd;
+	_Atomic int wfd;
 	uint64_t next_tick;
 	_Atomic uint64_t last_beat;
-	pid_t loop_tid;
+	_Atomic pid_t loop_tid;
+	_Atomic bool stop_req;
 	sigset_t old_mask;
 	bool sig_saved;
 	struct airy_dmn_ops ops;
 	struct airy_dmn_evt evts[AIRY_DMN_MAX_SRC];
 	unsigned int nr_evt;
 };
+
+/*
+ * 状态与停止请求跨线程访问：airy_dmn_stop() 可从任意线程置位停止
+ * 请求并读取唤醒描述符，主循环线程发布状态。统一经原子访问，避免
+ * 条件检查与写入之间的丢失更新。
+ */
+static inline enum airy_dmn_state dmn_state(const struct airy_dmn *dmn)
+{
+	return (enum airy_dmn_state)atomic_load(&dmn->state);
+}
+
+static inline void dmn_state_set(struct airy_dmn *dmn,
+				 enum airy_dmn_state state)
+{
+	atomic_store(&dmn->state, (int)state);
+}
+
+static inline bool dmn_stopped(const struct airy_dmn *dmn)
+{
+	return atomic_load(&dmn->stop_req);
+}
 
 /*
  * 事件源内部操作：airy_dmn_attach() 占用槽位并以槽位下标作为 epoll

@@ -80,19 +80,20 @@ static int dmn_slot(const struct airy_dmn *dmn)
 /* 事件表写操作只允许在初始化期或循环线程的运行期/停止期进行。 */
 bool airy_dmn_evok(const struct airy_dmn *dmn)
 {
-	if (dmn->state == AIRY_DMN_INIT)
+	enum airy_dmn_state state = dmn_state(dmn);
+
+	if (state == AIRY_DMN_INIT)
 		return true;
 
-	if (dmn->state != AIRY_DMN_RUNNING &&
-	    dmn->state != AIRY_DMN_STOPPING)
+	if (state != AIRY_DMN_RUNNING && state != AIRY_DMN_STOPPING)
 		return false;
 
-	return dmn->loop_tid == gettid();
+	return atomic_load(&dmn->loop_tid) == gettid();
 }
 
 bool airy_dmn_delok(const struct airy_dmn *dmn)
 {
-	return dmn->state == AIRY_DMN_STOPPED || airy_dmn_evok(dmn);
+	return dmn_state(dmn) == AIRY_DMN_STOPPED || airy_dmn_evok(dmn);
 }
 
 static int dmn_ctl(struct airy_dmn *dmn, int op, int fd, int slot,

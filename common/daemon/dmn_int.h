@@ -27,6 +27,8 @@
 #define AIRY_DMN_DFL_MISS	3
 #define AIRY_DMN_EPOLL_MAX	64
 
+#define AIRY_ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
+
 /**
  * enum airy_dmn_kind - 事件源类型
  * @AIRY_DMN_KIND_FD: 普通 fd，按 AIRY_DMN_IN/OUT/ERR/HUP 回调
@@ -97,5 +99,15 @@ struct airy_dmn {
 	struct airy_dmn_evt evts[AIRY_DMN_MAX_SRC];
 	unsigned int nr_evt;
 };
+
+/*
+ * 事件源内部操作：airy_dmn_attach() 占用槽位并以槽位下标作为 epoll
+ * data.u32，返回槽位；airy_dmn_detach() 释放槽位，外部已关闭的描述符
+ * 不视为错误。二者由 fd 与 IPC 注册路径共用，避免两份 epoll 逻辑。
+ */
+uint32_t airy_dmn_mask(unsigned int events);
+int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
+		    enum airy_dmn_kind kind);
+int airy_dmn_detach(struct airy_dmn *dmn, int slot);
 
 #endif /* _AIRY_DMN_INT_H */

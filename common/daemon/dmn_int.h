@@ -133,10 +133,13 @@ int airy_dmn_detach(struct airy_dmn *dmn, int slot);
 /*
  * IPC 通道内部操作：airy_dmn_ipcrecv() 从已注册通道读取一条完整
  * 消息帧，校验 Layout C 头后回调。帧过短、magic 或 payload_len 不
- * 符、对端关闭均返回 -AIRY_EIO；主循环据此终止，避免在失序通道上
- * 继续解释字节流。
+ * 符、摘要失配、对端关闭均返回负值；主循环据此终止，避免在失序
+ * 通道上继续解释字节流。airy_dmn_crc() 按 C-S12 计算 header[0:52)
+ * 与 payload 的摘要，发送与接收共用同一实现。
  */
 int airy_dmn_ipcrecv(struct airy_dmn *dmn, struct airy_dmn_evt *evt);
+uint32_t airy_dmn_crc(const struct airy_ipc_msg_hdr *hdr,
+		      const void *payload);
 
 /*
  * 信号收口内部操作：airy_dmn_sigarm() 阻塞 SIGTERM/SIGINT/SIGHUP 并

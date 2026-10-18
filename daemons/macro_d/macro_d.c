@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <poll.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -33,8 +34,8 @@
 #include <time.h>
 #include <unistd.h>
 
-/* [SC] 共享契约头文件（通过 -I../kernel/include/uapi/linux 引用） */
-#include <airymax/error.h>
+/* [SC] 共享契约头文件（通过 -I../kernel/include/uapi 引用） */
+#include <linux/airymax/error.h>
 
 /* ─── 常量 ──────────────────────────────────────────────────────────── */
 
@@ -181,21 +182,21 @@ static void macro_execute(enum macro_verdict verdict, uint32_t fault_code)
 
 	switch (verdict) {
 	case MACRO_VERDICT_TERMINATE:
-		macro_log("CRIT", "裁决=TERMINATE 故障=%s(0x%04x) — 安全违规，"
-			  "建议立即终止 agent", fault, fault_code);
+		macro_log("CRIT", "裁决=%s 故障=%s(0x%04x) — 安全违规，"
+			  "建议立即终止 agent", action, fault, fault_code);
 		break;
 	case MACRO_VERDICT_PAUSE:
-		macro_log("ERROR", "裁决=PAUSE 故障=%s(0x%04x) — 通信故障，"
-			  "建议冻结 agent 等待恢复", fault, fault_code);
+		macro_log("ERROR", "裁决=%s 故障=%s(0x%04x) — 通信故障，"
+			  "建议冻结 agent 等待恢复", action, fault, fault_code);
 		break;
 	case MACRO_VERDICT_DEGRADE:
-		macro_log("WARN", "裁决=DEGRADE 故障=%s(0x%04x) — 超时，"
-			  "建议降级运行（限制资源）", fault, fault_code);
+		macro_log("WARN", "裁决=%s 故障=%s(0x%04x) — 超时，"
+			  "建议降级运行（限制资源）", action, fault, fault_code);
 		break;
 	case MACRO_VERDICT_WARN:
 	default:
-		macro_log("INFO", "裁决=WARN 故障=%s(0x%04x) — 异常，"
-			  "记录日志继续运行", fault, fault_code);
+		macro_log("INFO", "裁决=%s 故障=%s(0x%04x) — 异常，"
+			  "记录日志继续运行", action, fault, fault_code);
 		break;
 	}
 }

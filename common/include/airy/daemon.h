@@ -214,6 +214,39 @@ int airy_dmn_send(struct airy_dmn *dmn, int fd,
 		  const struct airy_ipc_msg_hdr *hdr, const void *payload);
 
 /**
+ * struct airy_dmn_frame - 批量发送的一帧
+ * @hdr: Layout C 消息头；opcode 与 BATCH_TAIL 由框架盖写
+ * @payload: 消息体，payload_len 为 0 时可为 NULL
+ */
+struct airy_dmn_frame {
+	const struct airy_ipc_msg_hdr *hdr;
+	const void *payload;
+};
+
+/**
+ * airy_dmn_batch() - 经已注册 IPC 通道批量发送消息
+ * @dmn: 上下文
+ * @fd: 已由 airy_dmn_ipc() 注册的 IPC 通道描述符
+ * @frames: 待发送帧数组
+ * @nr: 帧数，至少 2
+ * @done: 已完整写出的帧数，可为 NULL
+ *
+ * 先校验全部帧再写出，任一帧非法时不发送任何消息，不留半批。opcode
+ * 统一盖写为 AIRY_IPC_OP_SEND_BATCH，仅末帧置 AIRY_IPC_FLAG_BATCH_TAIL，
+ * 其余帧清除该位；每帧按 C-S12 独立计算摘要。实现按固定上限分块提交，
+ * 不分配堆内存。部分写出时 *done 为已完整写出的帧数，调用方只能从该
+ * 位置续发，重发整批会产生重复消息。接收方逐帧回调，按 BATCH_TAIL
+ * 判断一批结束。
+ *
+ * Return: 0 全部写出；-AIRY_EINVAL 参数非法、任一帧非法或 fd 非 IPC
+ *         通道；-AIRY_ENOENT fd 未注册；-AIRY_EAGAIN 发送缓冲已满；
+ *         -AIRY_EIO 通道失序或对端已关闭。
+ */
+int airy_dmn_batch(struct airy_dmn *dmn, int fd,
+		   const struct airy_dmn_frame *frames, size_t nr,
+		   size_t *done);
+
+/**
  * airy_dmn_run() - 进入主循环
  * @dmn: 上下文
  *

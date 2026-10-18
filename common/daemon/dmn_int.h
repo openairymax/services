@@ -17,6 +17,7 @@
 
 #include <limits.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -83,7 +84,8 @@ struct airy_dmn_evt {
  * @sigfd: 框架自持的 signalfd 描述符，-1 表示未创建
  * @wfd: 框架自持的唤醒 eventfd，-1 表示未创建
  * @next_tick: 下一次 tick 的单调毫秒截止点
- * @last_beat: 最近一次心跳的单调毫秒时刻
+ * @last_beat: 最近一次心跳的单调毫秒时刻，0 表示尚未上报；原子量，
+ *             跨线程刷新与读取
  * @old_mask: 运行前的线程信号掩码，仅 sig_saved 为真时有效
  * @sig_saved: 是否已接管信号掩码
  * @ops: 业务回调副本
@@ -103,7 +105,7 @@ struct airy_dmn {
 	int sigfd;
 	int wfd;
 	uint64_t next_tick;
-	uint64_t last_beat;
+	_Atomic uint64_t last_beat;
 	sigset_t old_mask;
 	bool sig_saved;
 	struct airy_dmn_ops ops;

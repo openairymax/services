@@ -7,7 +7,8 @@
  * epoll_wait() 是唯一阻塞点：fd 事件按槽位回调，tick 按单调时钟
  * 截止点触发。框架自持的 eventfd 以 AIRY_DMN_CTL 哨兵注册，使
  * airy_dmn_stop() 在没有外部事件时也能立即打断等待，且不占用事件
- * 源槽位。ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
+ * 源槽位；signalfd 以 AIRY_DMN_SIG 哨兵注册，信号经同一循环分派。
+ * ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
  *
  * IRON-9 v3: [IND] 独立实现层 — agent-linux services 子仓内部。
  *
@@ -39,6 +40,9 @@ static int dmn_wake(struct airy_dmn *dmn)
 		.data.u32 = AIRY_DMN_CTL,
 	};
 	int ret;
+
+	if (dmn->wfd >= 0)
+		return 0;
 
 	dmn->wfd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
 	if (dmn->wfd < 0)
@@ -92,6 +96,12 @@ static int dmn_fire(struct airy_dmn *dmn, const struct epoll_event *evs,
 			dmn_drain(dmn);
 			continue;
 		}
+		if (slot == AIRY_DMN_SIG) {
+			ret = airy_dmn_sigev(dmn);
+			if (ret)
+				return ret;
+			continue;
+		}
 		if (slot >= AIRY_ARRAY_SIZE(dmn->evts))
 			continue;
 
@@ -143,6 +153,8 @@ int airy_dmn_run(struct airy_dmn *dmn)
 	ret = airy_dmn_ep(dmn);
 	if (!ret)
 		ret = dmn_wake(dmn);
+	if (!ret)
+		ret = airy_dmn_sigarm(dmn);
 	if (ret)
 		return ret;
 
@@ -150,6 +162,7 @@ int airy_dmn_run(struct airy_dmn *dmn)
 		ret = dmn->ops.start(dmn, dmn->ops.data);
 		if (ret) {
 			dmn->state = AIRY_DMN_STOPPED;
+			airy_dmn_sigoff(dmn);
 			return ret;
 		}
 	}
@@ -177,6 +190,7 @@ int airy_dmn_run(struct airy_dmn *dmn)
 	if (dmn->ops.stop)
 		sret = dmn->ops.stop(dmn, dmn->ops.data);
 	dmn->state = AIRY_DMN_STOPPED;
+	airy_dmn_sigoff(dmn);
 
 	return ret ? ret : sret;
 }

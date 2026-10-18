@@ -196,7 +196,9 @@ int airy_dmn_ipc(struct airy_dmn *dmn, int fd, airy_dmn_msg msg, void *data);
  * @dmn: 上下文
  *
  * 依次调用 start、epoll 事件循环、stop。AIRY_DMN_F_SIG 生效时，
- * SIGTERM/SIGINT 触发停止，SIGHUP 触发 reload。框架自持唤醒源，
+ * 运行线程阻塞 SIGTERM/SIGINT/SIGHUP 并由 signalfd 收口：
+ * SIGTERM/SIGINT 触发停止，SIGHUP 触发 reload；退出后恢复原掩码。
+ * 多线程 daemon 须在创建线程前自行阻塞这些信号。框架自持唤醒源，
  * airy_dmn_stop() 可在其他线程调用并立即打断等待。
  *
  * Return: 0 正常停止；-AIRY_EINVAL 未注册回调；-AIRY_EBUSY 主循环

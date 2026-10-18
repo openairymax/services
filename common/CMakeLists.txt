@@ -7,6 +7,7 @@ add_library(airy_daemon STATIC
 	daemon/dmn_core.c
 	daemon/dmn_event.c
 	daemon/dmn_loop.c
+	daemon/dmn_sig.c
 )
 
 target_compile_features(airy_daemon PUBLIC c_std_11)

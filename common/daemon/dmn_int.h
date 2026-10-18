@@ -20,6 +20,7 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <airy/daemon.h>
 
@@ -86,6 +87,8 @@ struct airy_dmn_evt {
  * @next_tick: 下一次 tick 的单调毫秒截止点
  * @last_beat: 最近一次心跳的单调毫秒时刻，0 表示尚未上报；原子量，
  *             跨线程刷新与读取
+ * @loop_tid: 主循环线程 id，0 表示未运行；运行期事件源变更据此限定
+ *            在回调线程，事件表始终只由循环线程修改
  * @old_mask: 运行前的线程信号掩码，仅 sig_saved 为真时有效
  * @sig_saved: 是否已接管信号掩码
  * @ops: 业务回调副本
@@ -106,6 +109,7 @@ struct airy_dmn {
 	int wfd;
 	uint64_t next_tick;
 	_Atomic uint64_t last_beat;
+	pid_t loop_tid;
 	sigset_t old_mask;
 	bool sig_saved;
 	struct airy_dmn_ops ops;
@@ -129,6 +133,15 @@ int airy_dmn_find(const struct airy_dmn *dmn, int fd);
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind);
 int airy_dmn_detach(struct airy_dmn *dmn, int slot);
+
+/*
+ * 事件表写入守卫：airy_dmn_evok() 在初始化期或循环线程的运行期与
+ * 停止期返回 true，供注册与修改入口复用，避免各分片自行复制状态
+ * 判断；airy_dmn_delok() 额外允许主循环退出后的单线程清理。两者
+ * 与 airy_dmn_live() 的心跳新鲜度查询无关。
+ */
+bool airy_dmn_evok(const struct airy_dmn *dmn);
+bool airy_dmn_delok(const struct airy_dmn *dmn);
 
 /*
  * IPC 通道内部操作：airy_dmn_ipcrecv() 从已注册通道读取一条完整

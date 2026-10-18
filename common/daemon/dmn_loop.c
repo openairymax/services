@@ -168,9 +168,12 @@ int airy_dmn_run(struct airy_dmn *dmn)
 	if (ret)
 		return ret;
 
+	dmn->loop_tid = gettid();
+
 	if (dmn->ops.start) {
 		ret = dmn->ops.start(dmn, dmn->ops.data);
 		if (ret) {
+			dmn->loop_tid = 0;
 			dmn->state = AIRY_DMN_STOPPED;
 			airy_dmn_sigoff(dmn);
 			return ret;
@@ -200,6 +203,7 @@ int airy_dmn_run(struct airy_dmn *dmn)
 	if (dmn->ops.stop)
 		sret = dmn->ops.stop(dmn, dmn->ops.data);
 	dmn->state = AIRY_DMN_STOPPED;
+	dmn->loop_tid = 0;
 	airy_dmn_sigoff(dmn);
 
 	return ret ? ret : sret;

@@ -9,6 +9,10 @@
  * 与注销只操作框架自身的 epoll，不关闭调用方描述符。外部提前关闭
  * 描述符导致的 ENOENT/EBADF 视为已注销，槽位仍然回收。
  *
+ * 主循环运行期间允许在回调内注册、注销与修改关注掩码，事件表因此
+ * 只由循环线程修改：以 loop_tid 与调用线程比对，其他线程在运行期
+ * 变更返回 EBUSY，避免与分派并发改写槽位。
+ *
  * IRON-9 v3: [IND] 独立实现层 — agent-linux services 子仓内部。
  *
  * SSoT: docs-linux/20-modules/02-services.md §3.7
@@ -19,6 +23,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <unistd.h>
 
 #include "dmn_int.h"
 
@@ -72,6 +77,38 @@ static int dmn_slot(const struct airy_dmn *dmn)
 	return -AIRY_ENOMEM;
 }
 
+/* 事件表写操作只允许在初始化期或循环线程的运行期/停止期进行。 */
+bool airy_dmn_evok(const struct airy_dmn *dmn)
+{
+	if (dmn->state == AIRY_DMN_INIT)
+		return true;
+
+	if (dmn->state != AIRY_DMN_RUNNING &&
+	    dmn->state != AIRY_DMN_STOPPING)
+		return false;
+
+	return dmn->loop_tid == gettid();
+}
+
+bool airy_dmn_delok(const struct airy_dmn *dmn)
+{
+	return dmn->state == AIRY_DMN_STOPPED || airy_dmn_evok(dmn);
+}
+
+static int dmn_ctl(struct airy_dmn *dmn, int op, int fd, int slot,
+		   uint32_t mask)
+{
+	struct epoll_event ev = {
+		.events = mask,
+		.data.u32 = (uint32_t)slot,
+	};
+
+	if (epoll_ctl(dmn->epfd, op, fd, &ev))
+		return airy_dmn_err(errno);
+
+	return 0;
+}
+
 int airy_dmn_find(const struct airy_dmn *dmn, int fd)
 {
 	unsigned int i;
@@ -118,10 +155,6 @@ unsigned int airy_dmn_rev(uint32_t mask)
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind)
 {
-	struct epoll_event ev = {
-		.events = mask,
-		.data.u32 = 0,
-	};
 	int slot;
 	int ret;
 
@@ -130,12 +163,10 @@ int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		return slot;
 
 	ret = airy_dmn_ep(dmn);
+	if (!ret)
+		ret = dmn_ctl(dmn, EPOLL_CTL_ADD, fd, slot, mask);
 	if (ret)
 		return ret;
-
-	ev.data.u32 = (uint32_t)slot;
-	if (epoll_ctl(dmn->epfd, EPOLL_CTL_ADD, fd, &ev))
-		return airy_dmn_err(errno);
 
 	dmn->evts[slot].fd = fd;
 	dmn->evts[slot].kind = kind;
@@ -175,7 +206,7 @@ int airy_dmn_add(struct airy_dmn *dmn, const struct airy_dmn_src *src)
 		return -AIRY_EINVAL;
 	if (src->events & ~DMN_EVT_ALL)
 		return -AIRY_EINVAL;
-	if (dmn->state != AIRY_DMN_INIT)
+	if (!airy_dmn_evok(dmn))
 		return -AIRY_EBUSY;
 	if (airy_dmn_find(dmn, src->fd) >= 0)
 		return -AIRY_EEXIST;
@@ -198,10 +229,40 @@ int airy_dmn_del(struct airy_dmn *dmn, int fd)
 
 	if (!dmn || fd < 0)
 		return -AIRY_EINVAL;
+	if (!airy_dmn_delok(dmn))
+		return -AIRY_EBUSY;
 
 	slot = airy_dmn_find(dmn, fd);
 	if (slot < 0)
 		return slot;
 
 	return airy_dmn_detach(dmn, slot);
+}
+
+int airy_dmn_mod(struct airy_dmn *dmn, int fd, unsigned int events)
+{
+	struct airy_dmn_evt *evt;
+	int slot;
+	int ret;
+
+	if (!dmn || fd < 0 || !events || (events & ~DMN_EVT_ALL))
+		return -AIRY_EINVAL;
+	if (!airy_dmn_evok(dmn))
+		return -AIRY_EBUSY;
+
+	slot = airy_dmn_find(dmn, fd);
+	if (slot < 0)
+		return slot;
+
+	evt = &dmn->evts[slot];
+	if (evt->kind != AIRY_DMN_KIND_FD)
+		return -AIRY_EINVAL;
+
+	ret = dmn_ctl(dmn, EPOLL_CTL_MOD, fd, slot, airy_dmn_mask(events));
+	if (ret)
+		return ret;
+
+	evt->events = events;
+
+	return 0;
 }

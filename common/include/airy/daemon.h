@@ -162,8 +162,13 @@ int airy_dmn_reg(struct airy_dmn *dmn, const struct airy_dmn_ops *ops);
  * @dmn: 上下文
  * @src: 事件源；fd 由调用方持有
  *
+ * 可在主循环启动前调用，也可在运行期由事件回调内调用，以便服务器
+ * 形态接纳新连接。运行期的事件表变更只允许发生在循环线程，其他
+ * 线程调用返回 -AIRY_EBUSY。
+ *
  * Return: 0 成功；-AIRY_EINVAL 参数非法；-AIRY_EEXIST fd 已注册；
- *         -AIRY_EBUSY 主循环已启动；-AIRY_ENOMEM 资源不足。
+ *         -AIRY_EBUSY 主循环运行中但不在回调线程；-AIRY_ENOMEM
+ *         资源不足。
  */
 int airy_dmn_add(struct airy_dmn *dmn, const struct airy_dmn_src *src);
 
@@ -172,9 +177,29 @@ int airy_dmn_add(struct airy_dmn *dmn, const struct airy_dmn_src *src);
  * @dmn: 上下文
  * @fd: 已注册的描述符
  *
- * Return: 0 成功；-AIRY_ENOENT 未注册。
+ * 运行期只允许在事件回调内调用。注销只从框架自身的 epoll 移除，
+ * 不关闭描述符；主循环退出后可任意时刻调用以清理残留槽位。
+ *
+ * Return: 0 成功；-AIRY_EINVAL 参数非法；-AIRY_ENOENT 未注册；
+ *         -AIRY_EBUSY 主循环运行中但不在回调线程。
  */
 int airy_dmn_del(struct airy_dmn *dmn, int fd);
+
+/**
+ * airy_dmn_mod() - 修改 fd 事件源的关注掩码
+ * @dmn: 上下文
+ * @fd: 已注册的 fd 事件源
+ * @events: 新的 AIRY_DMN_IN/OUT/ERR/HUP 位掩码，至少一位
+ *
+ * 用于 OUT 背压：发送缓冲满时改为关注可写，在可写回调中恢复为仅
+ * 关注输入。IPC 通道的关注位固定为 IN，不接受修改。线程约束与
+ * airy_dmn_add() 相同；已分发但被本次修改屏蔽的事件位不再回调。
+ *
+ * Return: 0 成功；-AIRY_EINVAL 参数非法或 fd 非 fd 事件源；
+ *         -AIRY_ENOENT fd 未注册；-AIRY_EBUSY 主循环运行中但不在
+ *         回调线程。
+ */
+int airy_dmn_mod(struct airy_dmn *dmn, int fd, unsigned int events);
 
 /**
  * airy_dmn_ipc() - 注册 IPC 通道
@@ -187,10 +212,13 @@ int airy_dmn_del(struct airy_dmn *dmn, int fd);
  * 保留标志位、payload_len 上界与 C-S12 摘要后回调；一条消息须由
  * 单次 send 写入同一条记录或数据报。帧短于头部、magic、标志位或
  * 摘要不符、对端关闭时主循环以负值终止，不做字节流重同步。描述符
- * 由调用方持有。
+ * 由调用方持有。可在主循环启动前注册，也可在运行期由事件回调内
+ * 注册，以便从监听描述符接纳的连接进入同一循环；线程约束与
+ * airy_dmn_add() 相同。
  *
  * Return: 0 成功；-AIRY_EINVAL 参数非法或 fd 类型不符；
- *         -AIRY_EEXIST/-AIRY_EBUSY/-AIRY_ENOMEM 同 airy_dmn_add()。
+ *         -AIRY_EEXIST/-AIRY_ENOMEM 同 airy_dmn_add()；
+ *         -AIRY_EBUSY 主循环运行中但不在回调线程。
  */
 int airy_dmn_ipc(struct airy_dmn *dmn, int fd, airy_dmn_msg msg, void *data);
 

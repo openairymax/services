@@ -96,7 +96,8 @@ struct airy_dmn_cfg {
 /**
  * struct airy_dmn_ops - daemon 业务回调
  * @start: 主循环进入前调用，可返回负值阻止启动
- * @tick: 每个 tick_ms 周期调用
+ * @tick: 按 tick_ms 固定网格调用；回调耗时不影响网格，错过的周期
+ *        合并为一次触发且不补发，事件批处理中也可能插入调用
  * @reload: 收到 SIGHUP 时调用，用于配置热加载
  * @stop: 主循环退出前调用，用于释放业务资源
  * @data: 透传给上述回调

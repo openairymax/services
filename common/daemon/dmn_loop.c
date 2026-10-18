@@ -122,6 +122,24 @@ static int dmn_fire_one(struct airy_dmn *dmn, const struct epoll_event *ev)
 	return dmn_fire_fd(dmn, evt, ev);
 }
 
+static int dmn_tick(struct airy_dmn *dmn)
+{
+	uint64_t now;
+	uint64_t miss;
+
+	if (!dmn->tick_ms || !dmn->ops.tick)
+		return 0;
+
+	now = airy_dmn_now();
+	if (now < dmn->next_tick)
+		return 0;
+
+	miss = (now - dmn->next_tick) / dmn->tick_ms;
+	dmn->next_tick += (miss + 1) * dmn->tick_ms;
+
+	return dmn->ops.tick(dmn, dmn->ops.data);
+}
+
 static int dmn_fire(struct airy_dmn *dmn, const struct epoll_event *evs,
 		    int n)
 {
@@ -132,25 +150,14 @@ static int dmn_fire(struct airy_dmn *dmn, const struct epoll_event *evs,
 		ret = dmn_fire_one(dmn, &evs[i]);
 		if (ret)
 			return ret;
+		if (dmn_stopped(dmn))
+			return 0;
+		ret = dmn_tick(dmn);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
-}
-
-static int dmn_tick(struct airy_dmn *dmn)
-{
-	uint64_t now;
-
-	if (!dmn->tick_ms || !dmn->ops.tick)
-		return 0;
-
-	now = airy_dmn_now();
-	if (now < dmn->next_tick)
-		return 0;
-
-	dmn->next_tick = now + dmn->tick_ms;
-
-	return dmn->ops.tick(dmn, dmn->ops.data);
 }
 
 static int dmn_spin(struct airy_dmn *dmn, struct epoll_event *evs)

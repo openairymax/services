@@ -183,15 +183,35 @@ int airy_dmn_del(struct airy_dmn *dmn, int fd);
  * @msg: 消息回调，必填
  * @data: 透传给 msg
  *
- * 框架按 128 字节头 + payload_len 读取一条完整消息，校验 magic 与
- * 长度上界后回调；一条消息须由单次 send 写入同一条记录或数据报。
- * 帧短于头部、magic 或 payload_len 不符、对端关闭时主循环以
- * -AIRY_EIO 终止，不做字节流重同步。描述符由调用方持有。
+ * 框架按 128 字节头 + payload_len 读取一条完整消息，校验 magic、
+ * 保留标志位、payload_len 上界与 C-S12 摘要后回调；一条消息须由
+ * 单次 send 写入同一条记录或数据报。帧短于头部、magic、标志位或
+ * 摘要不符、对端关闭时主循环以负值终止，不做字节流重同步。描述符
+ * 由调用方持有。
  *
  * Return: 0 成功；-AIRY_EINVAL 参数非法或 fd 类型不符；
  *         -AIRY_EEXIST/-AIRY_EBUSY/-AIRY_ENOMEM 同 airy_dmn_add()。
  */
 int airy_dmn_ipc(struct airy_dmn *dmn, int fd, airy_dmn_msg msg, void *data);
+
+/**
+ * airy_dmn_send() - 经已注册 IPC 通道发送一条完整消息
+ * @dmn: 上下文
+ * @fd: 已由 airy_dmn_ipc() 注册的 IPC 通道描述符
+ * @hdr: Layout C 消息头；payload_len 为消息体长度
+ * @payload: 消息体，payload_len 为 0 时可为 NULL
+ *
+ * 校验 magic、保留标志位与 payload_len 上界后，按 C-S12 计算摘要
+ * （覆盖 header[0:52) + payload）并盖写副本的 crc32 字段，再以
+ * 128 字节头加消息体单次写入一条记录或数据报。通道须为已连接
+ * 描述符；部分写入视为通道失序。调用方持有的 hdr 不被修改。
+ *
+ * Return: 0 成功；-AIRY_EINVAL 参数非法或 fd 非 IPC 通道；
+ *         -AIRY_ENOENT fd 未注册；-AIRY_EAGAIN 发送缓冲已满；
+ *         -AIRY_EIO 通道失序或对端已关闭。
+ */
+int airy_dmn_send(struct airy_dmn *dmn, int fd,
+		  const struct airy_ipc_msg_hdr *hdr, const void *payload);
 
 /**
  * airy_dmn_run() - 进入主循环

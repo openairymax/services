@@ -16,6 +16,7 @@
 #define _AIRY_DMN_INT_H
 
 #include <limits.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -27,8 +28,9 @@
 #define AIRY_DMN_DFL_MISS	3
 #define AIRY_DMN_EPOLL_MAX	64
 
-/* 唤醒源在 epoll data.u32 中的哨兵值，不占用事件源槽位。 */
+/* 框架自持描述符在 epoll data.u32 中的哨兵值，不占用事件源槽位。 */
 #define AIRY_DMN_CTL		UINT32_MAX
+#define AIRY_DMN_SIG		(UINT32_MAX - 1)
 
 #define AIRY_ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 
@@ -82,6 +84,8 @@ struct airy_dmn_evt {
  * @wfd: 框架自持的唤醒 eventfd，-1 表示未创建
  * @next_tick: 下一次 tick 的单调毫秒截止点
  * @last_beat: 最近一次心跳的单调毫秒时刻
+ * @old_mask: 运行前的线程信号掩码，仅 sig_saved 为真时有效
+ * @sig_saved: 是否已接管信号掩码
  * @ops: 业务回调副本
  * @evts: 固定槽位事件表
  * @nr_evt: 已占用槽位数
@@ -100,6 +104,8 @@ struct airy_dmn {
 	int wfd;
 	uint64_t next_tick;
 	uint64_t last_beat;
+	sigset_t old_mask;
+	bool sig_saved;
 	struct airy_dmn_ops ops;
 	struct airy_dmn_evt evts[AIRY_DMN_MAX_SRC];
 	unsigned int nr_evt;
@@ -119,5 +125,15 @@ int airy_dmn_err(int err);
 int airy_dmn_attach(struct airy_dmn *dmn, int fd, uint32_t mask,
 		    enum airy_dmn_kind kind);
 int airy_dmn_detach(struct airy_dmn *dmn, int slot);
+
+/*
+ * 信号收口内部操作：airy_dmn_sigarm() 阻塞 SIGTERM/SIGINT/SIGHUP 并
+ * 创建 signalfd 注册到同一 epoll；airy_dmn_sigev() 排空已就绪信号并
+ * 分派；airy_dmn_sigoff() 恢复运行前的线程信号掩码。三者在主循环
+ * 分片中成对使用。
+ */
+int airy_dmn_sigarm(struct airy_dmn *dmn);
+int airy_dmn_sigev(struct airy_dmn *dmn);
+void airy_dmn_sigoff(struct airy_dmn *dmn);
 
 #endif /* _AIRY_DMN_INT_H */

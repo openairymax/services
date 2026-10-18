@@ -67,25 +67,31 @@ struct airy_dmn *airy_dmn_new(const struct airy_dmn_cfg *cfg)
 	dmn->beat_ms = cfg->beat_ms;
 	dmn->miss_max = cfg->miss_max ? cfg->miss_max : AIRY_DMN_DFL_MISS;
 	dmn->flags = cfg->flags;
-	dmn->state = AIRY_DMN_INIT;
+	atomic_init(&dmn->state, AIRY_DMN_INIT);
+	atomic_init(&dmn->last_beat, 0);
+	atomic_init(&dmn->loop_tid, 0);
+	atomic_init(&dmn->stop_req, false);
 	dmn->epfd = -1;
 	dmn->sigfd = -1;
-	dmn->wfd = -1;
+	atomic_init(&dmn->wfd, -1);
 
 	return dmn;
 }
 
 void airy_dmn_free(struct airy_dmn *dmn)
 {
+	int wfd;
+
 	if (!dmn)
 		return;
 
+	wfd = atomic_load(&dmn->wfd);
 	if (dmn->epfd >= 0)
 		close(dmn->epfd);
 	if (dmn->sigfd >= 0)
 		close(dmn->sigfd);
-	if (dmn->wfd >= 0)
-		close(dmn->wfd);
+	if (wfd >= 0)
+		close(wfd);
 
 	free(dmn);
 }
@@ -94,7 +100,7 @@ int airy_dmn_reg(struct airy_dmn *dmn, const struct airy_dmn_ops *ops)
 {
 	if (!dmn || !ops)
 		return -AIRY_EINVAL;
-	if (dmn->state != AIRY_DMN_INIT)
+	if (dmn_state(dmn) != AIRY_DMN_INIT)
 		return -AIRY_EBUSY;
 
 	dmn->ops = *ops;
@@ -108,7 +114,7 @@ enum airy_dmn_state airy_dmn_state(const struct airy_dmn *dmn)
 	if (!dmn)
 		return AIRY_DMN_INIT;
 
-	return dmn->state;
+	return dmn_state(dmn);
 }
 
 const char *airy_dmn_name(const struct airy_dmn *dmn)

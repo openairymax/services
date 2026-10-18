@@ -29,8 +29,11 @@
 static void dmn_drain(struct airy_dmn *dmn)
 {
 	uint64_t val;
+	int wfd;
 
-	(void)!read(dmn->wfd, &val, sizeof(val));
+	wfd = atomic_load(&dmn->wfd);
+	if (wfd >= 0)
+		(void)!read(wfd, &val, sizeof(val));
 }
 
 static int dmn_wake(struct airy_dmn *dmn)
@@ -39,21 +42,23 @@ static int dmn_wake(struct airy_dmn *dmn)
 		.events = EPOLLIN,
 		.data.u32 = AIRY_DMN_CTL,
 	};
+	int wfd;
 	int ret;
 
-	if (dmn->wfd >= 0)
+	if (atomic_load(&dmn->wfd) >= 0)
 		return 0;
 
-	dmn->wfd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-	if (dmn->wfd < 0)
+	wfd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (wfd < 0)
 		return airy_dmn_err(errno);
 
-	if (!epoll_ctl(dmn->epfd, EPOLL_CTL_ADD, dmn->wfd, &ev))
+	if (!epoll_ctl(dmn->epfd, EPOLL_CTL_ADD, wfd, &ev)) {
+		atomic_store(&dmn->wfd, wfd);
 		return 0;
+	}
 
 	ret = airy_dmn_err(errno);
-	close(dmn->wfd);
-	dmn->wfd = -1;
+	close(wfd);
 
 	return ret;
 }
@@ -148,62 +153,79 @@ static int dmn_tick(struct airy_dmn *dmn)
 	return dmn->ops.tick(dmn, dmn->ops.data);
 }
 
-int airy_dmn_run(struct airy_dmn *dmn)
+static int dmn_spin(struct airy_dmn *dmn, struct epoll_event *evs)
 {
-	struct epoll_event evs[AIRY_DMN_EPOLL_MAX];
-	int ret = 0;
-	int sret = 0;
+	int ret;
 	int n;
 
-	if (!dmn || !dmn->bound)
-		return -AIRY_EINVAL;
-	if (dmn->state != AIRY_DMN_INIT)
-		return -AIRY_EBUSY;
+	while (!dmn_stopped(dmn)) {
+		n = dmn_wait(dmn, evs);
+		if (n < 0)
+			return n;
+
+		ret = dmn_fire(dmn, evs, n);
+		if (ret)
+			return ret;
+		if (dmn_stopped(dmn))
+			return 0;
+
+		ret = dmn_tick(dmn);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int dmn_arm(struct airy_dmn *dmn)
+{
+	int ret;
 
 	ret = airy_dmn_ep(dmn);
 	if (!ret)
 		ret = dmn_wake(dmn);
 	if (!ret)
 		ret = airy_dmn_sigarm(dmn);
+
+	return ret;
+}
+
+int airy_dmn_run(struct airy_dmn *dmn)
+{
+	struct epoll_event evs[AIRY_DMN_EPOLL_MAX];
+	bool entered = false;
+	int ret;
+	int sret = 0;
+
+	if (!dmn || !dmn->bound)
+		return -AIRY_EINVAL;
+	if (dmn_state(dmn) != AIRY_DMN_INIT)
+		return -AIRY_EBUSY;
+
+	ret = dmn_arm(dmn);
 	if (ret)
 		return ret;
 
-	dmn->loop_tid = gettid();
-
-	if (dmn->ops.start) {
-		ret = dmn->ops.start(dmn, dmn->ops.data);
-		if (ret) {
-			dmn->loop_tid = 0;
-			dmn->state = AIRY_DMN_STOPPED;
-			airy_dmn_sigoff(dmn);
-			return ret;
-		}
-	}
-
-	dmn->state = AIRY_DMN_RUNNING;
+	atomic_store(&dmn->loop_tid, gettid());
+	dmn_state_set(dmn, AIRY_DMN_RUNNING);
 	dmn->next_tick = airy_dmn_now() + dmn->tick_ms;
 
-	while (dmn->state == AIRY_DMN_RUNNING) {
-		n = dmn_wait(dmn, evs);
-		if (n < 0) {
-			ret = n;
-			break;
+	if (!dmn_stopped(dmn)) {
+		if (dmn->ops.start) {
+			ret = dmn->ops.start(dmn, dmn->ops.data);
+			if (ret)
+				goto out;
 		}
-
-		ret = dmn_fire(dmn, evs, n);
-		if (ret || dmn->state != AIRY_DMN_RUNNING)
-			break;
-
-		ret = dmn_tick(dmn);
-		if (ret)
-			break;
+		entered = true;
+		ret = dmn_spin(dmn, evs);
 	}
 
-	dmn->state = AIRY_DMN_STOPPING;
-	if (dmn->ops.stop)
+out:
+	dmn_state_set(dmn, AIRY_DMN_STOPPING);
+	if (entered && dmn->ops.stop)
 		sret = dmn->ops.stop(dmn, dmn->ops.data);
-	dmn->state = AIRY_DMN_STOPPED;
-	dmn->loop_tid = 0;
+	dmn_state_set(dmn, AIRY_DMN_STOPPED);
+	atomic_store(&dmn->loop_tid, 0);
 	airy_dmn_sigoff(dmn);
 
 	return ret ? ret : sret;
@@ -212,13 +234,13 @@ int airy_dmn_run(struct airy_dmn *dmn)
 void airy_dmn_stop(struct airy_dmn *dmn)
 {
 	uint64_t one = 1;
+	int wfd;
 
 	if (!dmn)
 		return;
 
-	if (dmn->state == AIRY_DMN_RUNNING)
-		dmn->state = AIRY_DMN_STOPPING;
-
-	if (dmn->wfd >= 0)
-		(void)!write(dmn->wfd, &one, sizeof(one));
+	atomic_store(&dmn->stop_req, true);
+	wfd = atomic_load(&dmn->wfd);
+	if (wfd >= 0)
+		(void)!write(wfd, &one, sizeof(one));
 }

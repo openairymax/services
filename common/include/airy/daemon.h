@@ -298,7 +298,8 @@ int airy_dmn_notify(const char *state);
  * 运行线程阻塞 SIGTERM/SIGINT/SIGHUP 并由 signalfd 收口：
  * SIGTERM/SIGINT 触发停止，SIGHUP 触发 reload；退出后恢复原掩码。
  * 多线程 daemon 须在创建线程前自行阻塞这些信号。框架自持唤醒源，
- * airy_dmn_stop() 可在其他线程调用并立即打断等待。
+ * airy_dmn_stop() 可在其他线程调用并立即打断等待。进入循环前若已
+ * 收到停止请求，则跳过 start 与事件分派，直接走退出路径并返回 0。
  *
  * Return: 0 正常停止；-AIRY_EINVAL 未注册回调；-AIRY_EBUSY 主循环
  *         已启动；-AIRY_ENOMEM/-AIRY_EACCES/-AIRY_EIO 事件循环资源
@@ -310,7 +311,9 @@ int airy_dmn_run(struct airy_dmn *dmn);
  * airy_dmn_stop() - 请求停止主循环
  * @dmn: 上下文；NULL 安全
  *
- * 只置停止标志，事件循环在当前回调返回后退出。
+ * 可在任意线程调用，停止请求一经置位不再撤销。事件循环在当前回调
+ * 返回后退出；请求早于 airy_dmn_run() 或位于 start 回调内同样生效。
+ * 运行期状态由主循环线程独占发布，本函数只置请求标志并唤醒等待。
  */
 void airy_dmn_stop(struct airy_dmn *dmn);
 

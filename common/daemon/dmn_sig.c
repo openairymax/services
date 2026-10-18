@@ -91,7 +91,7 @@ void airy_dmn_sigoff(struct airy_dmn *dmn)
 static int dmn_sigact(struct airy_dmn *dmn, uint32_t signo)
 {
 	if (signo == SIGTERM || signo == SIGINT)
-		dmn->state = AIRY_DMN_STOPPING;
+		atomic_store(&dmn->stop_req, true);
 
 	if (signo != SIGHUP || !dmn->ops.reload)
 		return 0;

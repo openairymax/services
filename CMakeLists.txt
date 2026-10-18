@@ -21,10 +21,11 @@ set(CMAKE_C_EXTENSIONS OFF)
 # ---------------------------------------------------------------------------
 # [SC] 头文件引用（OS-IRON-014 / 决策 G1）
 # 唯一物理宿主：kernel/include/uapi/linux/airymax/
-# 禁止物理副本，通过 -I 引用
+# 禁止物理副本，通过 -idirafter 引用：该树是内核 UAPI 副本，
+# 置于系统头之后可避免遮蔽 glibc 的 <linux/*>，同时仍解析
+# <linux/airymax/*>。
 # ---------------------------------------------------------------------------
-include_directories(${CMAKE_SOURCE_DIR}/../kernel/include)
-include_directories(${CMAKE_SOURCE_DIR}/../kernel/include/uapi/linux)
+add_compile_options(-idirafter ${CMAKE_SOURCE_DIR}/../kernel/include/uapi)
 
 # ---------------------------------------------------------------------------
 # 编译选项（OS-STD-FMT-001/002）
@@ -39,9 +40,10 @@ add_compile_options(
 )
 
 # ---------------------------------------------------------------------------
-# 子目录：12 daemon
+# 子目录：daemon 框架 + 12 daemon
 # 0.1.1 仅 macro_d 可编译，其余 1.0.1 补齐
 # ---------------------------------------------------------------------------
+add_subdirectory(common)
 add_subdirectory(daemons/macro_d)
 
 # ---------------------------------------------------------------------------

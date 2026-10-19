@@ -7,9 +7,14 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(airy_services
-	VERSION 0.1.1
-	LANGUAGES C
-	DESCRIPTION "AirymaxOS services submodule — 12 daemons + userland")
+       VERSION 0.1.1
+       LANGUAGES C
+       DESCRIPTION "AirymaxOS services submodule — 12 daemons + userland")
+
+# ---------------------------------------------------------------------------
+# 测试开关：CTest 声明式注册（用户态 D2 测试挂点，等价于内核态 KUnit）
+# ---------------------------------------------------------------------------
+include(CTest)
 
 # ---------------------------------------------------------------------------
 # C 标准：C11（用户态 daemon）

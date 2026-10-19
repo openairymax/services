@@ -34,3 +34,10 @@ target_compile_options(airy_daemon
 	PUBLIC
 		-idirafter ${CMAKE_SOURCE_DIR}/../kernel/include/uapi
 )
+
+# ---------------------------------------------------------------------------
+# 单元测试挂点：随 BUILD_TESTING 开关，由 ctest 调度（TAP 13 输出）。
+# ---------------------------------------------------------------------------
+if(BUILD_TESTING)
+	add_subdirectory(tests)
+endif()

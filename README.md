@@ -58,10 +58,10 @@ Services changes are governed by management-repository workflows (each ≤ 2 job
 
 | Workflow | Jobs | Applies to services via |
 |----------|------|--------------------------|
-| `mgmt-orchestrator.yml` | `file-integrity` (8 submodules + governance files) + `orchestrate-leaf-ci` (aggregate leaf CI, markdownlint, copyright) | Aggregates this leaf repo's CI status |
+| `mgmt-verify.yml` | `file-integrity` (8 submodules + governance files) + `orchestrate-leaf-ci` (aggregate leaf CI, markdownlint, copyright) | Aggregates this leaf repo's CI status |
 | `nightly.yml` | `nightly-test-suite` (soak + chaos exercise the service set) + `nightly-revert-or-budget` | Nightly cron |
 | `release.yml` | `build-and-sign` (SBOM scan of `services/`) + `publish-release` | Release tag |
-| `ssot-validate.yml` | `ssot-syntax-and-rules` + `ssot-cross-ref` | When docs reference service rules |
+| `ssot-verify.yml` | `ssot-syntax-and-rules` + `doc-links` | When docs reference service rules |
 
 Language-level CI (C / shell / unit tests) is delegated to this leaf repository's
 own `.github/workflows/`.

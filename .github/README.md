@@ -1,7 +1,7 @@
 # `.github/` — services Leaf Repository Automation
 
 > GitHub automation directory for the **services** leaf repository of
-> [agentrt-linux (AirymaxOS)](https://atomgit.com/openairymax/agentrt-linux).
+> [agent-linux (AirymaxOS)](https://atomgit.com/openairymax/agent-linux).
 
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
@@ -26,10 +26,10 @@ services/.github/
 
 | Workflow | Jobs | Relevance to services |
 |----------|------|------------------------|
-| `mgmt-orchestrator.yml` | `file-integrity` + `orchestrate-leaf-ci` | Verifies the `services/` submodule dir exists; aggregates this repo's CI status into the management gate |
+| `mgmt-verify.yml` | `file-integrity` + `orchestrate-leaf-ci` | Verifies the `services/` submodule dir exists; aggregates this repo's CI status into the management gate |
 | `nightly.yml` | `nightly-test-suite` + `nightly-revert-or-budget` | 72h soak and chaos suites exercise the 12 daemons and io_uring IPC paths |
 | `release.yml` | `build-and-sign` + `publish-release` | `syft services/` generates the SPDX SBOM fragment for this repo |
-| `ssot-validate.yml` | `ssot-syntax-and-rules` + `ssot-cross-ref` | Validates rule IDs referenced in services documentation |
+| `ssot-verify.yml` | `ssot-syntax-and-rules` + `doc-links` | Validates rule IDs referenced in services documentation |
 
 ## Development Guide
 

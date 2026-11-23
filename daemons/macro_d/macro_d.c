@@ -1,347 +1,325 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
 /*
  * Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
  *
- * macro_d.c — Macro-Supervisor 用户态裁决主循环
+ * macro_d.c —— Micro-Supervisor 的故障裁决守护
  *
- * 职责：
- *   接收内核 Micro-Supervisor 通过 eventfd 上报的故障信号，
- *   读取 [SC] error.h 中定义的故障码，执行宏观裁决
- *   （警告 / 降级 / 暂停 / 终止），将裁决结果打印到 stderr。
- *
- * [IND] 完全独立层（agent-linux 专属实现，决策 F1 真实可编译骨架）。
- *
- * 相关文档：
- *   docs/AirymaxOS/10-architecture/07-directory-structure.md §4.2
- *   kernel/include/uapi/linux/airymax/error.h
+ * 独占打开 /dev/airy_superv，把一个 eventfd 绑给内核作为唤醒通道；每次
+ * 唤醒后按 24 字节明细逐条排空故障环并给出裁决。事件源只有该 eventfd，
+ * tick 只负责补排空、丢失计数与看门狗上报，空闲时不产生周期负载。
+ * SIGHUP 重新校验整份配置：非法则整次拒绝，设备变更则先接新设备再退
+ * 旧设备。
  */
+#define _GNU_SOURCE
 
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <poll.h>
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/epoll.h>
+#include <sysexits.h>
 #include <sys/eventfd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <time.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
-/* [SC] 共享契约头文件（通过 -I../kernel/include/uapi 引用） */
 #include <linux/airymax/error.h>
 
-/* ─── 常量 ──────────────────────────────────────────────────────────── */
+#include <airy/daemon.h>
 
-#define MACRO_D_NAME		"macro_d"
-#define MACRO_D_VERSION		"0.1.1"
-#define MACRO_D_EPOLLEVS	16
-#define MACRO_D_FAULTBUF	64
-#define MACRO_D_STATUSPATH	"/proc/airy/status"
+#include "macro_d.h"
 
-/* 裁决动作枚举（与 kernel superv 模型对齐） */
-enum macro_verdict {
-	MACRO_VERDICT_WARN	= 0,	/* 警告：记录日志，不干预 */
-	MACRO_VERDICT_DEGRADE	= 1,	/* 降级：限制资源 */
-	MACRO_VERDICT_PAUSE	= 2,	/* 暂停：冻结 agent */
-	MACRO_VERDICT_TERMINATE	= 3,	/* 终止：杀掉 agent */
-	MACRO_VERDICT_MAX
+#define MACRO_CONF	"/etc/agentrt/macro-superv.conf"
+
+struct macro_ctx {
+	struct macro_cfg	cfg;
+	char			cfg_path[MACRO_PATH_MAX];
+	int			dev_fd;
+	int			efd;
+	uint64_t		wakes;
+	uint64_t		faults;
+	uint64_t		lost;
+	uint64_t		verdicts[AIRY_ADJUD_NR];
 };
 
-/* ─── 辅助函数 ──────────────────────────────────────────────────────── */
-
-static const char *macro_fault_name(uint32_t fault)
+static int macro_dev_open(int *dev_fd, int *efd, const char *path)
 {
-	switch (fault) {
-	case AIRY_FAULT_CAP_FORGED:
-		return "CAP_FORGED";
-	case AIRY_FAULT_CAP_LEAK:
-		return "CAP_LEAK";
-	case AIRY_FAULT_RING_CORRUPT:
-		return "RING_CORRUPT";
-	case AIRY_FAULT_TIMEOUT:
-		return "TIMEOUT";
-	case AIRY_FAULT_ABNORMAL_CAP:
-		return "ABNORMAL_CAP";
-	case AIRY_FAULT_VM_FAULT:
-		return "VM_FAULT";
-	default:
-		return "UNKNOWN";
+	__s32 arg;
+	int fd, e, saved;
+
+	fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0)
+		return -AIRY_EIO;
+	e = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (e < 0) {
+		saved = errno;
+		close(fd);
+		errno = saved;
+		return -AIRY_EIO;
 	}
-}
-
-static const char *macro_verdict_name(enum macro_verdict v)
-{
-	switch (v) {
-	case MACRO_VERDICT_WARN:
-		return "WARN";
-	case MACRO_VERDICT_DEGRADE:
-		return "DEGRADE";
-	case MACRO_VERDICT_PAUSE:
-		return "PAUSE";
-	case MACRO_VERDICT_TERMINATE:
-		return "TERMINATE";
-	default:
-		return "UNKNOWN";
+	arg = e;
+	if (ioctl(fd, AIRY_SUPERV_IOC_BIND_EFD, &arg)) {
+		saved = errno;
+		close(e);
+		close(fd);
+		errno = saved;
+		return -AIRY_EIO;
 	}
-}
-
-static void macro_log(const char *level, const char *fmt, ...)
-{
-	va_list ap;
-	struct timespec ts;
-
-	clock_gettime(CLOCK_REALTIME, &ts);
-	fprintf(stderr, "[%s] [%lld.%09ld] " MACRO_D_NAME ": ",
-		level, (long long)ts.tv_sec, ts.tv_nsec);
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	fputc('\n', stderr);
-}
-
-/* 读取 eventfd 计数器，返回读取的字节数（0 表示错误） */
-static ssize_t macro_eventfd_read(int fd, uint64_t *value)
-{
-	ssize_t n = read(fd, value, sizeof(*value));
-	if (n != sizeof(*value)) {
-		macro_log("ERROR", "eventfd read 失败: n=%zd errno=%d (%s)",
-			  n, errno, strerror(errno));
-		return 0;
-	}
-	return n;
-}
-
-/* 从状态文件读取故障码（0.1.1 阶段使用 /proc/airy/status） */
-static int macro_read_fault_code(uint32_t *fault_code)
-{
-	FILE *fp;
-	char line[MACRO_D_FAULTBUF];
-
-	fp = fopen(MACRO_D_STATUSPATH, "r");
-	if (!fp) {
-		/* 状态文件不存在时，使用事件计数器作为伪故障码 */
-		macro_log("WARN", "无法打开 %s: %s，使用默认故障码",
-			  MACRO_D_STATUSPATH, strerror(errno));
-		*fault_code = AIRY_FAULT_TIMEOUT;
-		return 0;
-	}
-
-	if (fgets(line, sizeof(line), fp) == NULL) {
-		fclose(fp);
-		macro_log("WARN", "%s 为空，使用默认故障码",
-			  MACRO_D_STATUSPATH);
-		*fault_code = AIRY_FAULT_TIMEOUT;
-		return 0;
-	}
-	fclose(fp);
-
-	/* 解析故障码（16 进制） */
-	*fault_code = (uint32_t)strtoul(line, NULL, 16);
+	*dev_fd = fd;
+	*efd = e;
 	return 0;
 }
 
-/*
- * macro_adjudicate — 宏观裁决逻辑
- *
- * 根据故障码选择裁决动作：
- *   CAP_FORGED / CAP_LEAK    → TERMINATE（安全违规，立即终止）
- *   RING_CORRUPT             → PAUSE（通信故障，暂停等待恢复）
- *   TIMEOUT                  → DEGRADE（超时，降级运行）
- *   ABNORMAL_CAP / VM_FAULT  → WARN（异常，警告记录）
- *   其他                      → WARN
- */
-static enum macro_verdict macro_adjudicate(uint32_t fault_code)
+static void macro_dev_close(int dev_fd, int efd)
 {
-	switch (fault_code) {
-	case AIRY_FAULT_CAP_FORGED:
-	case AIRY_FAULT_CAP_LEAK:
-		return MACRO_VERDICT_TERMINATE;
-	case AIRY_FAULT_RING_CORRUPT:
-		return MACRO_VERDICT_PAUSE;
-	case AIRY_FAULT_TIMEOUT:
-		return MACRO_VERDICT_DEGRADE;
-	case AIRY_FAULT_ABNORMAL_CAP:
-	case AIRY_FAULT_VM_FAULT:
-	default:
-		return MACRO_VERDICT_WARN;
+	/* 先关设备：release 路径会解绑 eventfd，避免留悬空通知上下文 */
+	close(dev_fd);
+	close(efd);
+}
+
+static void macro_judge(struct macro_ctx *c,
+			const struct airy_fault_event *ev)
+{
+	enum airy_adjud act = macro_cfg_act(&c->cfg, ev->fault_code);
+
+	c->faults++;
+	if ((unsigned int)act < AIRY_ADJUD_NR)
+		c->verdicts[act]++;
+	fprintf(stderr,
+		"macro_d: agent=%u ring=%u fault=%s(0x%04x) "
+		"ts=%lluns verdict=%s\n",
+		ev->agent_id, ev->ring_id, macro_fault(ev->fault_code),
+		ev->fault_code, (unsigned long long)ev->timestamp_ns,
+		macro_verdict(act));
+}
+
+static void macro_lost(struct macro_ctx *c)
+{
+	__u32 lost;
+
+	if (ioctl(c->dev_fd, AIRY_SUPERV_IOC_LOST, &lost))
+		return;
+	if (lost > c->lost) {
+		fprintf(stderr, "macro_d: 内核丢弃 %u 条故障明细\n",
+			(unsigned int)(lost - c->lost));
+		c->lost = lost;
 	}
 }
 
-/* 执行裁决动作（0.1.1 阶段仅打印到 stderr） */
-static void macro_execute(enum macro_verdict verdict, uint32_t fault_code)
+static void macro_drain(struct macro_ctx *c)
 {
-	const char *action = macro_verdict_name(verdict);
-	const char *fault = macro_fault_name(fault_code);
+	struct airy_fault_event ev;
+	ssize_t n;
 
-	switch (verdict) {
-	case MACRO_VERDICT_TERMINATE:
-		macro_log("CRIT", "裁决=%s 故障=%s(0x%04x) — 安全违规，"
-			  "建议立即终止 agent", action, fault, fault_code);
-		break;
-	case MACRO_VERDICT_PAUSE:
-		macro_log("ERROR", "裁决=%s 故障=%s(0x%04x) — 通信故障，"
-			  "建议冻结 agent 等待恢复", action, fault, fault_code);
-		break;
-	case MACRO_VERDICT_DEGRADE:
-		macro_log("WARN", "裁决=%s 故障=%s(0x%04x) — 超时，"
-			  "建议降级运行（限制资源）", action, fault, fault_code);
-		break;
-	case MACRO_VERDICT_WARN:
-	default:
-		macro_log("INFO", "裁决=%s 故障=%s(0x%04x) — 异常，"
-			  "记录日志继续运行", action, fault, fault_code);
-		break;
-	}
-}
-
-/* ─── 主循环 ────────────────────────────────────────────────────────── */
-
-static int macro_main_loop(int efd)
-{
-	int epfd;
-	struct epoll_event ev;
-	struct epoll_event events[MACRO_D_EPOLLEVS];
-	int running = 1;
-	uint64_t event_count = 0;
-
-	/* 创建 epoll 实例 */
-	epfd = epoll_create1(EPOLL_CLOEXEC);
-	if (epfd < 0) {
-		macro_log("ERROR", "epoll_create1 失败: %s",
-			  strerror(errno));
-		return -1;
-	}
-
-	/* 注册 eventfd 到 epoll */
-	memset(&ev, 0, sizeof(ev));
-	ev.events = EPOLLIN;
-	ev.data.fd = efd;
-	if (epoll_ctl(epfd, EPOLL_CTL_ADD, efd, &ev) < 0) {
-		macro_log("ERROR", "epoll_ctl ADD 失败: %s",
-			  strerror(errno));
-		close(epfd);
-		return -1;
-	}
-
-	macro_log("INFO", MACRO_D_NAME " v" MACRO_D_VERSION
-		  " 启动，监听 eventfd=%d", efd);
-
-	while (running) {
-		int nfds = epoll_wait(epfd, events, MACRO_D_EPOLLEVS, -1);
-		if (nfds < 0) {
-			if (errno == EINTR) {
-				macro_log("INFO", "epoll_wait 被信号中断，"
-					  "继续运行");
-				continue;
-			}
-			macro_log("ERROR", "epoll_wait 失败: %s",
-				  strerror(errno));
+	for (;;) {
+		n = read(c->dev_fd, &ev, sizeof(ev));
+		if (n < 0) {
+			if (errno != EAGAIN)
+				fprintf(stderr, "macro_d: 读取故障明细失败: %s\n",
+					strerror(errno));
 			break;
 		}
-
-		for (int i = 0; i < nfds; i++) {
-			if (events[i].data.fd != efd) {
-				continue;
-			}
-
-			uint64_t val;
-			if (!macro_eventfd_read(efd, &val)) {
-				continue;
-			}
-			event_count += val;
-
-			uint32_t fault_code;
-			if (macro_read_fault_code(&fault_code) < 0) {
-				continue;
-			}
-
-			enum macro_verdict v = macro_adjudicate(fault_code);
-			macro_execute(v, fault_code);
-
-			macro_log("INFO", "累计事件=%" PRIu64
-				  " 本次故障码=0x%04x", event_count,
-				  fault_code);
+		if (n == 0)
+			break;
+		if ((size_t)n != sizeof(ev)) {
+			fprintf(stderr, "macro_d: 故障明细长度异常 %zd\n", n);
+			break;
 		}
+		macro_judge(c, &ev);
 	}
+	macro_lost(c);
+}
 
-	close(epfd);
-	macro_log("INFO", MACRO_D_NAME " 退出，累计事件=%" PRIu64,
-		  event_count);
+static int on_input(struct airy_dmn *dmn, int fd, unsigned int events,
+		    void *data)
+{
+	struct macro_ctx *c = data;
+	uint64_t count;
+
+	(void)dmn;
+	(void)fd;
+	if (events & (AIRY_DMN_ERR | AIRY_DMN_HUP)) {
+		fprintf(stderr, "macro_d: 监督通道已断开\n");
+		return -AIRY_EIO;
+	}
+	if (!(events & AIRY_DMN_IN))
+		return 0;
+	/* 唤醒计数只用来确认唤醒来源，明细一律从设备排空 */
+	if (read(c->efd, &count, sizeof(count)) == (ssize_t)sizeof(count))
+		c->wakes += count;
+	macro_drain(c);
 	return 0;
 }
 
-/* ─── 使用说明 ──────────────────────────────────────────────────────── */
-
-static void usage(FILE *out, const char *prog)
+static int on_tick(struct airy_dmn *dmn, void *data)
 {
-	fprintf(out,
-		"用法: %s [选项] <eventfd>\n"
-		"\n"
-		"Macro-Supervisor 用户态裁决守护进程。\n"
-		"\n"
-		"参数:\n"
-		"  <eventfd>       内核 Micro-Supervisor 创建的 eventfd 编号\n"
-		"\n"
-		"选项:\n"
-		"  -h, --help      显示帮助\n"
-		"  -v, --version   显示版本\n"
-		"\n"
-		"示例:\n"
-		"  %s 7            # 监听 fd=7 的 eventfd\n",
-		prog, prog);
+	struct macro_ctx *c = data;
+	char msg[224];
+
+	macro_drain(c);
+	airy_dmn_beat(dmn);
+	snprintf(msg, sizeof(msg),
+		 "WATCHDOG=1\nSTATUS=faults=%llu warn=%llu degrade=%llu "
+		 "pause=%llu terminate=%llu lost=%llu\n",
+		 (unsigned long long)c->faults,
+		 (unsigned long long)c->verdicts[AIRY_ADJUD_WARN],
+		 (unsigned long long)c->verdicts[AIRY_ADJUD_DEGRADE],
+		 (unsigned long long)c->verdicts[AIRY_ADJUD_PAUSE],
+		 (unsigned long long)c->verdicts[AIRY_ADJUD_TERMINATE],
+		 (unsigned long long)c->lost);
+	airy_dmn_notify(msg);
+	return 0;
 }
 
-/* ─── main 入口 ─────────────────────────────────────────────────────── */
+static int on_start(struct airy_dmn *dmn, void *data)
+{
+	struct macro_ctx *c = data;
+
+	(void)dmn;
+	macro_drain(c);
+	airy_dmn_notify("READY=1\nSTATUS=supervising\n");
+	return 0;
+}
+
+static int on_reload(struct airy_dmn *dmn, void *data)
+{
+	struct macro_ctx *c = data;
+	struct macro_cfg cfg;
+	struct airy_dmn_src src;
+	char err[192];
+	int dev_fd, efd, ret;
+
+	ret = macro_cfg_load(c->cfg_path, &cfg, err, sizeof(err));
+	if (ret) {
+		fprintf(stderr, "macro_d: 配置未生效: %s\n", err);
+		return 0;
+	}
+	if (strcmp(cfg.dev, c->cfg.dev) != 0) {
+		ret = macro_dev_open(&dev_fd, &efd, cfg.dev);
+		if (ret)
+			goto reject;
+		memset(&src, 0, sizeof(src));
+		src.fd = efd;
+		src.events = AIRY_DMN_IN;
+		src.recv = on_input;
+		src.data = c;
+		ret = airy_dmn_add(dmn, &src);
+		if (ret) {
+			macro_dev_close(dev_fd, efd);
+			goto reject;
+		}
+		macro_drain(c);
+		airy_dmn_del(dmn, c->efd);
+		macro_dev_close(c->dev_fd, c->efd);
+		c->dev_fd = dev_fd;
+		c->efd = efd;
+		c->lost = 0;
+	}
+	c->cfg = cfg;
+	airy_dmn_notify("STATUS=reloaded\n");
+	return 0;
+
+reject:
+	fprintf(stderr, "macro_d: 新配置不可用，保留旧配置\n");
+	return 0;
+}
+
+static int on_stop(struct airy_dmn *dmn, void *data)
+{
+	struct macro_ctx *c = data;
+
+	(void)dmn;
+	/* 描述符归 main 所有：框架不关闭外部 fd，这里再关一次会与收尾重复 */
+	macro_drain(c);
+	airy_dmn_notify("STOPPING=1\n");
+	return 0;
+}
+
+static int usage(const char *argv0)
+{
+	printf("用法: %s [--config=路径]\n", argv0);
+	return 0;
+}
 
 int main(int argc, char **argv)
 {
-	int efd;
-	const char *prog = argv[0] ? argv[0] : MACRO_D_NAME;
+	struct airy_dmn_ops ops;
+	struct airy_dmn_src src;
+	struct airy_dmn_cfg dcfg;
+	struct airy_dmn *dmn;
+	struct macro_ctx ctx;
+	const char *path = MACRO_CONF;
+	char err[192];
+	int ret;
+	int i;
 
-	/* 解析命令行参数 */
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "-h") == 0 ||
-		    strcmp(argv[i], "--help") == 0) {
-			usage(stdout, prog);
-			return 0;
+	for (i = 1; i < argc; i++) {
+		if (strncmp(argv[i], "--config=", 9) == 0) {
+			path = argv[i] + 9;
+		} else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+			path = argv[++i];
+		} else if (strcmp(argv[i], "--help") == 0) {
+			return usage(argv[0]);
+		} else {
+			fprintf(stderr, "macro_d: 未知参数 %s\n", argv[i]);
+			return EX_USAGE;
 		}
-		if (strcmp(argv[i], "-v") == 0 ||
-		    strcmp(argv[i], "--version") == 0) {
-			printf(MACRO_D_NAME " v" MACRO_D_VERSION
-			       " — AirymaxOS Macro-Supervisor\n");
-			return 0;
-		}
+	}
+	if (strlen(path) >= sizeof(ctx.cfg_path)) {
+		fprintf(stderr, "macro_d: 配置路径过长\n");
+		return EX_CONFIG;
 	}
 
-	if (argc < 2) {
-		usage(stderr, prog);
-		return EXIT_FAILURE;
+	memset(&ctx, 0, sizeof(ctx));
+	strcpy(ctx.cfg_path, path);
+	ret = macro_cfg_load(path, &ctx.cfg, err, sizeof(err));
+	if (ret) {
+		fprintf(stderr, "macro_d: %s\n", err);
+		return EX_CONFIG;
 	}
-
-	/* 解析 eventfd 编号 */
-	errno = 0;
-	long val = strtol(argv[1], NULL, 10);
-	if (errno != 0 || val < 0 || val > INT_MAX) {
-		fprintf(stderr, "%s: 无效的 eventfd 编号: %s\n", prog,
-			argv[1]);
-		return EXIT_FAILURE;
-	}
-	efd = (int)val;
-
-	/* 验证 fd 可读 */
-	if (fcntl(efd, F_GETFD) < 0) {
-		fprintf(stderr, "%s: eventfd %d 无效: %s\n", prog, efd,
+	ret = macro_dev_open(&ctx.dev_fd, &ctx.efd, ctx.cfg.dev);
+	if (ret) {
+		fprintf(stderr, "macro_d: 无法接入 %s: %s\n", ctx.cfg.dev,
 			strerror(errno));
-		return EXIT_FAILURE;
+		return EX_OSERR;
 	}
 
-	/* 进入主循环 */
-	return macro_main_loop(efd) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	memset(&dcfg, 0, sizeof(dcfg));
+	dcfg.name = "macro_d";
+	dcfg.config = path;
+	dcfg.tick_ms = 1000;
+	dcfg.flags = AIRY_DMN_F_SIG;
+	dmn = airy_dmn_new(&dcfg);
+	if (!dmn) {
+		macro_dev_close(ctx.dev_fd, ctx.efd);
+		return EX_OSERR;
+	}
+
+	memset(&ops, 0, sizeof(ops));
+	ops.start = on_start;
+	ops.tick = on_tick;
+	ops.reload = on_reload;
+	ops.stop = on_stop;
+	ops.data = &ctx;
+	ret = airy_dmn_reg(dmn, &ops);
+	if (ret)
+		goto out;
+
+	memset(&src, 0, sizeof(src));
+	src.fd = ctx.efd;
+	src.events = AIRY_DMN_IN;
+	src.recv = on_input;
+	src.data = &ctx;
+	ret = airy_dmn_add(dmn, &src);
+	if (ret)
+		goto out;
+
+	ret = airy_dmn_run(dmn);
+	if (ret)
+		fprintf(stderr, "macro_d: 主循环异常 %d\n", ret);
+
+out:
+	airy_dmn_free(dmn);
+	macro_dev_close(ctx.dev_fd, ctx.efd);
+	return ret ? EX_SOFTWARE : 0;
 }

@@ -103,6 +103,20 @@ static int reload(struct cfg_ctx *ctx, bool startup)
 	int rc;
 
 	rc = cfg_load(ctx->root, &next, err, sizeof(err));
+	if (!rc) {
+		snap = cfg_hold();
+		if (snap)
+			keep_frozen(cfg_view(snap), &next);
+		cfg_put(snap);
+
+		/* 配置与内核几何不一致时整次拒绝，不发布不可满足的值 */
+		rc = cfg_apply(&next, aerr, sizeof(aerr));
+		if (rc == -AIRY_ECFGSCHEMA)
+			snprintf(err, sizeof(err), "%s", aerr);
+		else if (rc)
+			cfg_log("warn", "内核参数落值不完整: %s", aerr);
+	}
+
 	if (rc) {
 		if (startup) {
 			cfg_default(&next);
@@ -115,16 +129,8 @@ static int reload(struct cfg_ctx *ctx, bool startup)
 		return rc;
 	}
 
-	snap = cfg_hold();
-	if (snap)
-		keep_frozen(cfg_view(snap), &next);
-	cfg_put(snap);
-
 	cfg_publish(&next);
 	ctx->degraded = false;
-
-	if (cfg_apply(&next, aerr, sizeof(aerr)))
-		cfg_log("warn", "内核参数落值不完整: %s", aerr);
 
 	cfg_log("info", "配置已生效 version=%d min_level=%d ring=%d "
 		"cap.max_agents=%d", next.version, next.log_level,

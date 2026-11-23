@@ -70,9 +70,9 @@ int main(void)
 	char line[LOGD_LINE_MAX];
 	char dir[LOGD_PATH_MAX];
 	char path[LOGD_PATH_MAX];
-	char p1[LOGD_PATH_MAX];
-	char p3[LOGD_PATH_MAX];
-	char p4[LOGD_PATH_MAX];
+	char p1[LOGD_PATH_MAX + 8];
+	char p3[LOGD_PATH_MAX + 8];
+	char p4[LOGD_PATH_MAX + 8];
 	const char *text = "012345678901234567890123456789";
 	int ret;
 

@@ -23,7 +23,7 @@ target_compile_definitions(macro_d
 		_GNU_SOURCE
 )
 
-# 安装
+# 安装（与 agentrt-macro-superv.service 的 ExecStart 一致）
 install(TARGETS macro_d
-	RUNTIME DESTINATION bin
+	RUNTIME DESTINATION sbin
 )

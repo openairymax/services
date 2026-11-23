@@ -1,0 +1,417 @@
+# AirymaxOS 错误消息模板（gettext 域 airymaxos）。
+# 自动生成，请勿手改；重新生成：
+#   python3 services/tools/error-msg/error_msg.py --gen
+# 唯一数据源：kernel/include/uapi/linux/airymax/error.h [SC]
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: AirymaxOS 0.0.5\n"
+"Report-Msgid-Bugs-To: wangliren@spharx.cn\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: error_msg.py\n"
+
+#. Unknown error code
+msgid "Unknown error"
+msgstr ""
+
+#. Success
+msgid "AIRY_EOK"
+msgstr ""
+
+#. Operation not permitted
+msgid "AIRY_EACCES"
+msgstr ""
+
+#. File exists
+msgid "AIRY_EEXIST"
+msgstr ""
+
+#. Bad address
+msgid "AIRY_EFAULT"
+msgstr ""
+
+#. Interrupted system call
+msgid "AIRY_EINTR"
+msgstr ""
+
+#. Invalid argument
+msgid "AIRY_EINVAL"
+msgstr ""
+
+#. I/O error
+msgid "AIRY_EIO"
+msgstr ""
+
+#. Is a directory
+msgid "AIRY_EISDIR"
+msgstr ""
+
+#. No such file or directory
+msgid "AIRY_ENOENT"
+msgstr ""
+
+#. Out of memory
+msgid "AIRY_ENOMEM"
+msgstr ""
+
+#. No space left on device
+msgid "AIRY_ENOSPC"
+msgstr ""
+
+#. Operation not supported
+msgid "AIRY_ENOTSUP"
+msgstr ""
+
+#. Operation not permitted (POSIX)
+msgid "AIRY_EPERM"
+msgstr ""
+
+#. Result too large
+msgid "AIRY_ERANGE"
+msgstr ""
+
+#. Device or resource busy
+msgid "AIRY_EBUSY"
+msgstr ""
+
+#. Operation canceled
+msgid "AIRY_ECANCELED"
+msgstr ""
+
+#. Try again
+msgid "AIRY_EAGAIN"
+msgstr ""
+
+#. C-S1:  Invalid IPC magic
+msgid "AIRY_EIPC_MAGIC"
+msgstr ""
+
+#. C-S2:  Unknown IPC opcode
+msgid "AIRY_EIPC_OPCODE"
+msgstr ""
+
+#. C-S3:  payload_len out of bounds
+msgid "AIRY_EIPC_PAYLOAD"
+msgstr ""
+
+#. C-S4:  Header size != 128 bytes
+msgid "AIRY_EIPC_HDRSIZE"
+msgstr ""
+
+#. C-S4:  reserved[72] not all zero
+msgid "AIRY_EIPC_RESERVED"
+msgstr ""
+
+#. C-S10: flags invalid (reserved bits nonzero)
+msgid "AIRY_EIPC_FLAGS"
+msgstr ""
+
+#. C-S10: opcode/flag not supported (e.g. ENCRYPT/COMPRESS)
+msgid "AIRY_EIPC_NOTSUPP"
+msgstr ""
+
+#. C-S6:  kfifo enqueue failed
+msgid "AIRY_EIPC_KFIFO"
+msgstr ""
+
+#. C-S7:  reclaim flag set
+msgid "AIRY_EIPC_RECLAIM"
+msgstr ""
+
+#. C-S8:  context check failed (!in_task)
+msgid "AIRY_EIPC_CONTEXT"
+msgstr ""
+
+#. C-S12: CRC32 check failed (header[0:52) + payload)
+msgid "AIRY_EIPC_CRC32"
+msgstr ""
+
+#. SLOW_SEND timeout
+msgid "AIRY_EIPC_TIMEOUT"
+msgstr ""
+
+#. C-S0:  Ring frozen (fastpath freeze check, A-ULS controlled)
+msgid "AIRY_EIPC_FROZEN"
+msgstr ""
+
+#. Capability not found
+msgid "AIRY_ECAP_MISSING"
+msgstr ""
+
+#. Capability revoked
+msgid "AIRY_ECAP_REVOKED"
+msgstr ""
+
+#. Capability expired
+msgid "AIRY_ECAP_EXPIRED"
+msgstr ""
+
+#. Capability mismatch
+msgid "AIRY_ECAP_MISMATCH"
+msgstr ""
+
+#. Pure-C LSM denied
+msgid "AIRY_ECAP_LSM_DENIED"
+msgstr ""
+
+#. [DSL] radix tree lookup miss
+msgid "AIRY_ECAP_RADIX_MISS"
+msgstr ""
+
+#. [DSL] static_key disabled
+msgid "AIRY_ECAP_STATIC_KEY"
+msgstr ""
+
+#. Badge invalid / RandomTag mismatch / CAP_CARRY but badge=0
+msgid "AIRY_ECAP_BADGE"
+msgstr ""
+
+#. Badge Epoch mismatch (revoked or expired)
+msgid "AIRY_ECAP_EPOCH"
+msgstr ""
+
+#. Badge forgery detected (also triggers AIRY_FAULT_CAP_FORGED)
+msgid "AIRY_ECAP_FORGED"
+msgstr ""
+
+#. Badge permissions insufficient for opcode
+msgid "AIRY_ECAP_PERM"
+msgstr ""
+
+#. Capability badge frozen (badge revocation, A-ULS controlled)
+msgid "AIRY_ECAP_FROZEN"
+msgstr ""
+
+#. sec_d throttle rejected (queue full)
+msgid "AIRY_ESEC_D_THROTTLED"
+msgstr ""
+
+#. Capability slot table overflow (agent_id >= AIRY_CAP_MAX_AGENTS)
+msgid "AIRY_ECAP_OVERFLOW"
+msgstr ""
+
+#. Configuration version mismatch
+msgid "AIRY_ECFGVERSION"
+msgstr ""
+
+#. Configuration schema invalid
+msgid "AIRY_ECFGSCHEMA"
+msgstr ""
+
+#. Base64 decode failure
+msgid "AIRY_ECFGBASE64"
+msgstr ""
+
+#. JSON parse failure
+msgid "AIRY_ECFGJSON"
+msgstr ""
+
+#. Config I/O error
+msgid "AIRY_ECFGIO"
+msgstr ""
+
+#. Invalid scheduling policy
+msgid "AIRY_ESCHED_POLICY"
+msgstr ""
+
+#. Runtime budget exceeded
+msgid "AIRY_ESCHED_BUDGET"
+msgstr ""
+
+#. Deadline missed
+msgid "AIRY_ESCHED_DEADLINE"
+msgstr ""
+
+#. Invalid period
+msgid "AIRY_ESCHED_PERIOD"
+msgstr ""
+
+#. Invalid priority
+msgid "AIRY_ESCHED_PRIO"
+msgstr ""
+
+#. Invalid EEVDF weight
+msgid "AIRY_ESCHED_WEIGHT"
+msgstr ""
+
+#. Invalid agent lifecycle state
+msgid "AIRY_ELIFECYCLE_STATE"
+msgstr ""
+
+#. Illegal state transition
+msgid "AIRY_ELIFECYCLE_TRANS"
+msgstr ""
+
+#. Agent not found
+msgid "AIRY_ELIFECYCLE_AGENT"
+msgstr ""
+
+#. Agent in zombie state
+msgid "AIRY_ELIFECYCLE_ZOMBIE"
+msgstr ""
+
+#. Invalid memory tier
+msgid "AIRY_EMEM_TIER"
+msgstr ""
+
+#. Invalid GFP flags
+msgid "AIRY_EMEM_GFP"
+msgstr ""
+
+#. PMEM operation failed
+msgid "AIRY_EMEM_PMEM"
+msgstr ""
+
+#. CXL operation failed
+msgid "AIRY_EMEM_CXL"
+msgstr ""
+
+#. Invalid page classification
+msgid "AIRY_EMEM_PAGE_CLASS"
+msgstr ""
+
+#. mmap failed
+msgid "AIRY_EMEM_MMAP"
+msgstr ""
+
+#. alloc_pages failed
+msgid "AIRY_EMEM_ALLOC"
+msgstr ""
+
+#. Out of memory (agent-scoped)
+msgid "AIRY_EMEM_OOM"
+msgstr ""
+
+#. Invalid cognition phase
+msgid "AIRY_ECOG_PHASE"
+msgstr ""
+
+#. Invalid think mode
+msgid "AIRY_ECOG_MODE"
+msgstr ""
+
+#. Q16.16 overflow/underflow
+msgid "AIRY_ECOG_Q16"
+msgstr ""
+
+#. Cognition loop timeout
+msgid "AIRY_ECOG_TIMEOUT"
+msgstr ""
+
+#. Max think iterations exceeded
+msgid "AIRY_ECOG_ITERATIONS"
+msgstr ""
+
+#. Confidence threshold not met
+msgid "AIRY_ECOG_CONFIDENCE"
+msgstr ""
+
+#. Ring Buffer write failed
+msgid "AIRY_ELOG_RING"
+msgstr ""
+
+#. Ring Buffer full
+msgid "AIRY_ELOG_FULL"
+msgstr ""
+
+#. Invalid log level
+msgid "AIRY_ELOG_LEVEL"
+msgstr ""
+
+#. Invalid facility code
+msgid "AIRY_ELOG_FACILITY"
+msgstr ""
+
+#. Log persistence failed
+msgid "AIRY_ELOG_PERSIST"
+msgstr ""
+
+#. Log record magic mismatch
+msgid "AIRY_ELOG_MAGIC"
+msgstr ""
+
+#. Invalid object handle
+msgid "AIRY_EOBJ_HANDLE"
+msgstr ""
+
+#. Reference count overflow/underflow
+msgid "AIRY_EOBJ_REFCOUNT"
+msgstr ""
+
+#. Object type mismatch
+msgid "AIRY_EOBJ_TYPE"
+msgstr ""
+
+#. Object already destroyed
+msgid "AIRY_EOBJ_GONE"
+msgstr ""
+
+#. Invalid syscall number
+msgid "AIRY_ESYS_NUMBER"
+msgstr ""
+
+#. Invalid syscall arguments
+msgid "AIRY_ESYS_ARGS"
+msgstr ""
+
+#. Syscall disabled in [DSL] mode
+msgid "AIRY_ESYS_DISABLED"
+msgstr ""
+
+#. ABI mismatch
+msgid "AIRY_ESYS_ABI"
+msgstr ""
+
+#. Malformed UTF-8 sequence
+msgid "AIRY_EENC_INVALID"
+msgstr ""
+
+#. Overlong encoding
+msgid "AIRY_EENC_OVERLONG"
+msgstr ""
+
+#. UTF-16 surrogate code point
+msgid "AIRY_EENC_SURROGATE"
+msgstr ""
+
+#. Unicode noncharacter
+msgid "AIRY_EENC_NONCHAR"
+msgstr ""
+
+#. Code point beyond U+10FFFF
+msgid "AIRY_EENC_RANGE"
+msgstr ""
+
+#. U+FEFF byte order mark
+msgid "AIRY_EENC_BOM"
+msgstr ""
+
+#. Interface blocked at the active lockdown level
+msgid "AIRY_ELOCKDOWN"
+msgstr ""
+
+#. Badge forgery (security breach)
+msgid "AIRY_FAULT_CAP_FORGED"
+msgstr ""
+
+#. Capability leak detected
+msgid "AIRY_FAULT_CAP_LEAK"
+msgstr ""
+
+#. IPC ring corruption
+msgid "AIRY_FAULT_RING_CORRUPT"
+msgstr ""
+
+#. Agent heartbeat timeout
+msgid "AIRY_FAULT_TIMEOUT"
+msgstr ""
+
+#. Abnormal capability usage
+msgid "AIRY_FAULT_ABNORMAL_CAP"
+msgstr ""
+
+#. VM page fault in Agent
+msgid "AIRY_FAULT_VM_FAULT"
+msgstr ""
+

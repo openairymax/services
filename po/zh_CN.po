@@ -1,0 +1,316 @@
+# AirymaxOS 简体中文错误消息。
+# 键为 [SC] 错误码符号名，与 error.h 一一对应；变更后运行
+#   python3 services/tools/error-msg/error_msg.py --check
+# 校验覆盖率与模板一致性。
+msgid ""
+msgstr ""
+"Project-Id-Version: AirymaxOS 0.0.5\n"
+"Report-Msgid-Bugs-To: wangliren@spharx.cn\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Unknown error"
+msgstr "未知错误"
+
+msgid "AIRY_EOK"
+msgstr "成功"
+
+msgid "AIRY_EACCES"
+msgstr "操作不被允许"
+
+msgid "AIRY_EEXIST"
+msgstr "文件已存在"
+
+msgid "AIRY_EFAULT"
+msgstr "地址无效"
+
+msgid "AIRY_EINTR"
+msgstr "系统调用被中断"
+
+msgid "AIRY_EINVAL"
+msgstr "参数无效"
+
+msgid "AIRY_EIO"
+msgstr "输入输出错误"
+
+msgid "AIRY_EISDIR"
+msgstr "目标是目录"
+
+msgid "AIRY_ENOENT"
+msgstr "文件或目录不存在"
+
+msgid "AIRY_ENOMEM"
+msgstr "内存不足"
+
+msgid "AIRY_ENOSPC"
+msgstr "设备空间不足"
+
+msgid "AIRY_ENOTSUP"
+msgstr "操作不受支持"
+
+msgid "AIRY_EPERM"
+msgstr "权限不足"
+
+msgid "AIRY_ERANGE"
+msgstr "结果超出范围"
+
+msgid "AIRY_EBUSY"
+msgstr "设备或资源忙"
+
+msgid "AIRY_ECANCELED"
+msgstr "操作已取消"
+
+msgid "AIRY_EAGAIN"
+msgstr "资源暂时不可用，请重试"
+
+msgid "AIRY_EIPC_MAGIC"
+msgstr "IPC 魔数无效"
+
+msgid "AIRY_EIPC_OPCODE"
+msgstr "未知的 IPC 操作码"
+
+msgid "AIRY_EIPC_PAYLOAD"
+msgstr "载荷长度越界"
+
+msgid "AIRY_EIPC_HDRSIZE"
+msgstr "头部长度不是 128 字节"
+
+msgid "AIRY_EIPC_RESERVED"
+msgstr "保留字段未全部清零"
+
+msgid "AIRY_EIPC_FLAGS"
+msgstr "标志位非法（保留位非零）"
+
+msgid "AIRY_EIPC_NOTSUPP"
+msgstr "操作码或标志不受支持（如加密、压缩）"
+
+msgid "AIRY_EIPC_KFIFO"
+msgstr "内核 FIFO 入队失败"
+
+msgid "AIRY_EIPC_RECLAIM"
+msgstr "回收标志已置位"
+
+msgid "AIRY_EIPC_CONTEXT"
+msgstr "上下文检查失败（不在任务上下文）"
+
+msgid "AIRY_EIPC_CRC32"
+msgstr "CRC32 校验失败"
+
+msgid "AIRY_EIPC_TIMEOUT"
+msgstr "慢路径发送超时"
+
+msgid "AIRY_EIPC_FROZEN"
+msgstr "IPC 环已冻结（A-ULS 控制）"
+
+msgid "AIRY_ECAP_MISSING"
+msgstr "能力不存在"
+
+msgid "AIRY_ECAP_REVOKED"
+msgstr "能力已吊销"
+
+msgid "AIRY_ECAP_EXPIRED"
+msgstr "能力已过期"
+
+msgid "AIRY_ECAP_MISMATCH"
+msgstr "能力不匹配"
+
+msgid "AIRY_ECAP_LSM_DENIED"
+msgstr "纯 C 安全模块拒绝"
+
+msgid "AIRY_ECAP_RADIX_MISS"
+msgstr "基数树查找未命中"
+
+msgid "AIRY_ECAP_STATIC_KEY"
+msgstr "静态键已禁用"
+
+msgid "AIRY_ECAP_BADGE"
+msgstr "徽章无效或随机标签不匹配（携带能力但徽章为零）"
+
+msgid "AIRY_ECAP_EPOCH"
+msgstr "徽章纪元不匹配（已吊销或过期）"
+
+msgid "AIRY_ECAP_FORGED"
+msgstr "检测到徽章伪造"
+
+msgid "AIRY_ECAP_PERM"
+msgstr "徽章权限不足以执行该操作码"
+
+msgid "AIRY_ECAP_FROZEN"
+msgstr "能力徽章已冻结（A-ULS 控制）"
+
+msgid "AIRY_ESEC_D_THROTTLED"
+msgstr "安全守护限流拒绝（队列已满）"
+
+msgid "AIRY_ECAP_OVERFLOW"
+msgstr "能力槽表溢出（智能体编号超出上限）"
+
+msgid "AIRY_ECFGVERSION"
+msgstr "配置版本不匹配"
+
+msgid "AIRY_ECFGSCHEMA"
+msgstr "配置模式非法"
+
+msgid "AIRY_ECFGBASE64"
+msgstr "Base64 解码失败"
+
+msgid "AIRY_ECFGJSON"
+msgstr "JSON 解析失败"
+
+msgid "AIRY_ECFGIO"
+msgstr "配置读写错误"
+
+msgid "AIRY_ESCHED_POLICY"
+msgstr "调度策略非法"
+
+msgid "AIRY_ESCHED_BUDGET"
+msgstr "运行预算超支"
+
+msgid "AIRY_ESCHED_DEADLINE"
+msgstr "错过截止时间"
+
+msgid "AIRY_ESCHED_PERIOD"
+msgstr "周期非法"
+
+msgid "AIRY_ESCHED_PRIO"
+msgstr "优先级非法"
+
+msgid "AIRY_ESCHED_WEIGHT"
+msgstr "EEVDF 权重非法"
+
+msgid "AIRY_ELIFECYCLE_STATE"
+msgstr "智能体生命周期状态非法"
+
+msgid "AIRY_ELIFECYCLE_TRANS"
+msgstr "非法的状态迁移"
+
+msgid "AIRY_ELIFECYCLE_AGENT"
+msgstr "智能体不存在"
+
+msgid "AIRY_ELIFECYCLE_ZOMBIE"
+msgstr "智能体处于僵尸状态"
+
+msgid "AIRY_EMEM_TIER"
+msgstr "内存层级非法"
+
+msgid "AIRY_EMEM_GFP"
+msgstr "GFP 标志非法"
+
+msgid "AIRY_EMEM_PMEM"
+msgstr "持久内存操作失败"
+
+msgid "AIRY_EMEM_CXL"
+msgstr "CXL 操作失败"
+
+msgid "AIRY_EMEM_PAGE_CLASS"
+msgstr "页面分类非法"
+
+msgid "AIRY_EMEM_MMAP"
+msgstr "内存映射失败"
+
+msgid "AIRY_EMEM_ALLOC"
+msgstr "页面分配失败"
+
+msgid "AIRY_EMEM_OOM"
+msgstr "内存不足（智能体范围）"
+
+msgid "AIRY_ECOG_PHASE"
+msgstr "认知阶段非法"
+
+msgid "AIRY_ECOG_MODE"
+msgstr "思考模式非法"
+
+msgid "AIRY_ECOG_Q16"
+msgstr "Q16.16 定点数溢出或下溢"
+
+msgid "AIRY_ECOG_TIMEOUT"
+msgstr "认知循环超时"
+
+msgid "AIRY_ECOG_ITERATIONS"
+msgstr "超过最大思考迭代次数"
+
+msgid "AIRY_ECOG_CONFIDENCE"
+msgstr "未达到置信度阈值"
+
+msgid "AIRY_ELOG_RING"
+msgstr "日志环写入失败"
+
+msgid "AIRY_ELOG_FULL"
+msgstr "日志环已满"
+
+msgid "AIRY_ELOG_LEVEL"
+msgstr "日志级别非法"
+
+msgid "AIRY_ELOG_FACILITY"
+msgstr "日志设施码非法"
+
+msgid "AIRY_ELOG_PERSIST"
+msgstr "日志持久化失败"
+
+msgid "AIRY_ELOG_MAGIC"
+msgstr "日志记录魔数不匹配"
+
+msgid "AIRY_EOBJ_HANDLE"
+msgstr "对象句柄非法"
+
+msgid "AIRY_EOBJ_REFCOUNT"
+msgstr "引用计数溢出或下溢"
+
+msgid "AIRY_EOBJ_TYPE"
+msgstr "对象类型不匹配"
+
+msgid "AIRY_EOBJ_GONE"
+msgstr "对象已销毁"
+
+msgid "AIRY_ESYS_NUMBER"
+msgstr "系统调用号非法"
+
+msgid "AIRY_ESYS_ARGS"
+msgstr "系统调用参数非法"
+
+msgid "AIRY_ESYS_DISABLED"
+msgstr "系统调用在降级模式下被禁用"
+
+msgid "AIRY_ESYS_ABI"
+msgstr "ABI 不匹配"
+
+msgid "AIRY_EENC_INVALID"
+msgstr "UTF-8 序列不合法"
+
+msgid "AIRY_EENC_OVERLONG"
+msgstr "过长的编码形式"
+
+msgid "AIRY_EENC_SURROGATE"
+msgstr "UTF-16 代理码点"
+
+msgid "AIRY_EENC_NONCHAR"
+msgstr "Unicode 非字符"
+
+msgid "AIRY_EENC_RANGE"
+msgstr "码点超出 U+10FFFF"
+
+msgid "AIRY_EENC_BOM"
+msgstr "出现字节序标记 U+FEFF"
+
+msgid "AIRY_ELOCKDOWN"
+msgstr "该接口在当前锁定级别下被阻断"
+
+msgid "AIRY_FAULT_CAP_FORGED"
+msgstr "徽章伪造（安全违规）"
+
+msgid "AIRY_FAULT_CAP_LEAK"
+msgstr "检测到能力泄漏"
+
+msgid "AIRY_FAULT_RING_CORRUPT"
+msgstr "IPC 环损坏"
+
+msgid "AIRY_FAULT_TIMEOUT"
+msgstr "智能体心跳超时"
+
+msgid "AIRY_FAULT_ABNORMAL_CAP"
+msgstr "能力使用异常"
+
+msgid "AIRY_FAULT_VM_FAULT"
+msgstr "智能体中的虚拟机缺页"
+

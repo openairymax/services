@@ -4,6 +4,8 @@
 # ===========================================================================
 
 add_library(airy_daemon STATIC
+	error_msg.c
+	error_msg_table.c
 	daemon/dmn_beat.c
 	daemon/dmn_core.c
 	daemon/dmn_crc.c

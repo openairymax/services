@@ -50,4 +50,5 @@ add_compile_options(
 add_subdirectory(common)
 add_subdirectory(daemons/macro_d)
 add_subdirectory(daemons/config_d)
+add_subdirectory(daemons/logger_d)
 

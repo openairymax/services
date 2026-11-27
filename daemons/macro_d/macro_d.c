@@ -26,6 +26,7 @@
 #include <linux/airymax/error.h>
 
 #include <airy/daemon.h>
+#include <airy/uevent.h>
 
 #include "macro_d.h"
 
@@ -39,7 +40,9 @@ struct macro_ctx {
 	uint64_t		wakes;
 	uint64_t		faults;
 	uint64_t		lost;
+	uint64_t		uev_lost;
 	uint64_t		verdicts[AIRY_ADJUD_NR];
+	struct airy_uev		enf;
 };
 
 static int macro_dev_open(int *dev_fd, int *efd, const char *path)
@@ -80,6 +83,7 @@ static void macro_dev_close(int dev_fd, int efd)
 static void macro_judge(struct macro_ctx *c,
 			const struct airy_fault_event *ev)
 {
+	struct airy_user_superv_enforce ue;
 	enum airy_adjud act = macro_cfg_act(&c->cfg, ev->fault_code);
 
 	c->faults++;
@@ -91,6 +95,11 @@ static void macro_judge(struct macro_ctx *c,
 		ev->agent_id, ev->ring_id, macro_fault(ev->fault_code),
 		ev->fault_code, (unsigned long long)ev->timestamp_ns,
 		macro_verdict(act));
+	ue.agent_id = ev->agent_id;
+	ue.action = (__u32)act;
+	ue.reason = ev->fault_code;
+	if (airy_uev_emit(&c->enf, &ue, sizeof(ue)))
+		c->uev_lost++;
 }
 
 static void macro_lost(struct macro_ctx *c)
@@ -160,13 +169,14 @@ static int on_tick(struct airy_dmn *dmn, void *data)
 	airy_dmn_beat(dmn);
 	snprintf(msg, sizeof(msg),
 		 "WATCHDOG=1\nSTATUS=faults=%llu warn=%llu degrade=%llu "
-		 "pause=%llu terminate=%llu lost=%llu\n",
+		 "pause=%llu terminate=%llu lost=%llu uev_lost=%llu\n",
 		 (unsigned long long)c->faults,
 		 (unsigned long long)c->verdicts[AIRY_ADJUD_WARN],
 		 (unsigned long long)c->verdicts[AIRY_ADJUD_DEGRADE],
 		 (unsigned long long)c->verdicts[AIRY_ADJUD_PAUSE],
 		 (unsigned long long)c->verdicts[AIRY_ADJUD_TERMINATE],
-		 (unsigned long long)c->lost);
+		 (unsigned long long)c->lost,
+		 (unsigned long long)c->uev_lost);
 	airy_dmn_notify(msg);
 	return 0;
 }
@@ -174,8 +184,16 @@ static int on_tick(struct airy_dmn *dmn, void *data)
 static int on_start(struct airy_dmn *dmn, void *data)
 {
 	struct macro_ctx *c = data;
+	int ret;
 
 	(void)dmn;
+	ret = airy_uev_open(&c->enf, AIRY_UEVENT_SUPERV_ENFORCE,
+			    AIRY_UEVENT_FMT_SUPERV_ENFORCE);
+	if (ret) {
+		fprintf(stderr, "macro_d: user_events 注册失败: %s\n",
+			strerror(-ret));
+		return ret;
+	}
 	macro_drain(c);
 	airy_dmn_notify("READY=1\nSTATUS=supervising\n");
 	return 0;
@@ -231,6 +249,7 @@ static int on_stop(struct airy_dmn *dmn, void *data)
 	(void)dmn;
 	/* 描述符归 main 所有：框架不关闭外部 fd，这里再关一次会与收尾重复 */
 	macro_drain(c);
+	airy_uev_close(&c->enf);
 	airy_dmn_notify("STOPPING=1\n");
 	return 0;
 }
